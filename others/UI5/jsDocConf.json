@@ -1,0 +1,32 @@
+{
+    "plugins": [],
+    "recurseDepth": 10,
+    "source": {
+        "include": [ 
+            "webapp"
+        ],
+        "exclude": [ 
+            "webapp/extLibs",
+            "webapp/utils/FileSaver.js",
+            "webapp/utils/locate-reuse-libs.js",
+            "webapp/utils/xlsx.js"
+        ],
+        "includePattern": ".+\\.js(doc|x)?$",
+        "excludePattern": "(^|\\/|\\\\)_"
+    },
+    "sourceType": "module",
+    "tags": {
+        "allowUnknownTags": true,
+        "dictionaries": ["jsdoc","closure"]
+    },
+    "templates": {
+        "cleverLinks": false,
+        "monospaceLinks": false
+    },
+    "opts": {
+        "package": "package.json",
+        "recurse": true,
+        "destination": "jsDoc/${project}_doc",
+        "template": "jsDoc/customTemplate"
+    }
+}
