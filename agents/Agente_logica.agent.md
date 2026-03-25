@@ -5,6 +5,7 @@ tools:
   - read_file
   - str_replace
   - create_file
+user-invocable: true
 ---
 
 # Agente 2 — Generación de la Lógica (Controlador + Modelos + Datos)
@@ -33,11 +34,11 @@ Implementar la **lógica funcional** de la pantalla en el controlador SAPUI5, in
 ---
 
 ## Fuera de alcance
-- Construcción visual de la vista (Agente 1).
-- Configuración de rutas y manifest (Agente 3).
-- Traducciones i18n (Agente 4) — aunque debe usar claves i18n.
-- Documentación detallada final (Agente 5).
-- Tests automatizados (Agente 6).
+- Construcción visual de la vista (Agente_interfaz).
+- Configuración de rutas y manifest (Agente_navegacion).
+- Traducciones i18n — aunque debe usar claves i18n.
+- Documentación detallada final (Agente_documentacion).
+- Tests automatizados.
 
 ---
 
@@ -62,16 +63,16 @@ Implementar la **lógica funcional** de la pantalla en el controlador SAPUI5, in
 
 ## Salidas (artefactos)
 - `webapp/controller/<ViewName>.controller.js` actualizado con lógica completa.
-- (Si no existe) `webapp/controller/BaseController.js`
+- (Si no existe) `webapp/controller/App.controller.js` como controlador base
 - (Si no existe) `webapp/model/formatter.js`
-- (Opcional) `webapp/service/<ServiceHelper>.js` para acceso a datos reutilizable.
+- (Opcional) `webapp/utils/<ServiceHelper>.js` para acceso a datos reutilizable.
 - Resumen de endpoints/entidades consumidas y bindings usados.
 - **Output JSON estándar** para el orquestador:
 
 ```json
 {
   "status": "success|warning|failed",
-  "changes": ["webapp/controller/X.controller.js", "webapp/controller/BaseController.js"],
+  "changes": ["webapp/controller/X.controller.js", "webapp/controller/App.controller.js"],
   "notes": ["Fuente: OData V4", "Supuesto: CSRF no requerido (V4)"],
   "todos": ["Verificar nombre exacto de entidad con el equipo backend"],
   "metrics": { "filesTouched": 2, "warnings": 1 }
@@ -109,14 +110,14 @@ Implementar la **lógica funcional** de la pantalla en el controlador SAPUI5, in
 ---
 
 ## Patrón BaseController (recomendado si ≥2 controladores)
-Crear `webapp/controller/BaseController.js` con helpers reutilizables. **No duplicar en cada controlador.**
+El proyecto usa `webapp/controller/App.controller.js` como controlador base. **No crear** un fichero `BaseController.js` independiente; centralizar los helpers en `App.controller` y extender desde él.
 
 ```javascript
-// webapp/controller/BaseController.js
+// webapp/controller/App.controller.js
 sap.ui.define(["sap/ui/core/mvc/Controller", "sap/ui/core/routing/History"],
   function(Controller, History) {
     "use strict";
-    return Controller.extend("<namespace>.controller.BaseController", {
+    return Controller.extend("<namespace>.controller.App", {
         getRouter: function() {
             return this.getOwnerComponent().getRouter();
         },
@@ -141,7 +142,23 @@ sap.ui.define(["sap/ui/core/mvc/Controller", "sap/ui/core/routing/History"],
 });
 ```
 
-Si ya existe `BaseController`, **extenderlo** sin duplicar helpers.
+Extender desde un controlador hijo:
+
+```javascript
+sap.ui.define([
+  "<namespace>/controller/App.controller"
+],
+function (AppController) {
+  "use strict";
+  return AppController.extend("<namespace>.controller.<ViewName>", {
+    onInit: function () {
+      AppController.prototype.onInit.apply(this, arguments);
+    }
+  });
+});
+```
+
+Si ya existe `App.controller.js`, **extenderlo** sin duplicar helpers.
 
 ---
 
@@ -160,7 +177,7 @@ Si ya existe `BaseController`, **extenderlo** sin duplicar helpers.
 ---
 
 ## Patrón de "ViewModel" (estado UI)
-Modelo `JSONModel` registrado como `"viewModel"` en la vista:
+Modelo `JSONModel` registrado como `"view"` en la vista:
 
 ```javascript
 var oViewModel = new JSONModel({
@@ -171,10 +188,10 @@ var oViewModel = new JSONModel({
     saveEnabled: false
     // draft: {} si la pantalla edita con borrador
 });
-this.getView().setModel(oViewModel, "viewModel");
+this.getView().setModel(oViewModel, "view");
 ```
 
-Usar en la vista: `enabled="{viewModel>/editEnabled}"`, `busy="{viewModel>/busy}"`.
+Usar en la vista: `enabled="{view>/editEnabled}"`, `busy="{view>/busy}"`.
 
 ---
 
@@ -220,7 +237,7 @@ Todos los textos de mensajes deben usar i18n: `this.getText("MSG_SAVED")`.
 2. **BaseController**
    - Verificar si existe. Si no y hay ≥2 controladores: crear. Si existe: extender.
 3. **Inicialización (`onInit`)**
-   - Instanciar viewModel con estado inicial.
+   - Instanciar viewModel con estado inicial y registrarlo como `"view"`.
    - Configurar modelo de datos (OData/REST) si no está en Component.js.
    - Attachar al router: `this.getRouter().getRoute("...").attachPatternMatched(this._onRouteMatched, this)`.
    - Registrar MessageManager si aplica.
@@ -283,7 +300,37 @@ Todos los textos de mensajes deben usar i18n: `this.getText("MSG_SAVED")`.
 - Textos de mensajes usan i18n.
 - `onExit` implementado con el detach correspondiente a todo lo registrado en `onInit`.
 - Formatters en fichero independiente.
-- BaseController utilizado (si procede).
+- BaseController (App.controller.js) utilizado (si procede).
+
+---
+
+## Convenciones recomendadas
+
+### Nomenclatura de funciones
+- Handlers de eventos UI declarados en la vista: prefijo `on` + verbo + sustantivo (ej.: `onPressSave`, `onChangeData`).
+- Funciones privadas internas: prefijo `_` + verbo + sustantivo (ej.: `_loadEntity`, `_validateForm`).
+- Callbacks del router y promesas: funciones privadas con prefijo `_` (ej.: `_handleRouteMatched`).
+
+### Nomenclatura de variables
+Notación húngara según convención del proyecto:
+- `o` — objetos (modelos, controles, contextos)
+- `s` — strings
+- `b` — booleanos
+- `a` — arrays
+- `i` — enteros
+- `p` — promesas
+- `fn` — callbacks almacenados en variable
+- `that` — alias de `this`
+
+### Nombre del modelo de estado de vista
+Registrar siempre como `"view"`: `this.getView().setModel(oViewModel, "view")`.  
+Binding en XML: `enabled="{view>/editEnabled}"`.
+
+### Formatters
+Ubicar en `webapp/model/formatter.js`. Importar en el controlador y asignar a `this.formatter`.
+
+### Acceso a datos reutilizable
+Si la lógica de acceso a datos se comparte entre controladores, extraer a `webapp/utils/<ServiceHelper>.js` (no `webapp/service/`).
 
 ---
 
@@ -305,8 +352,8 @@ Eres un experto en SAPUI5. Implementas controladores mantenibles, con lifecycle 
 ---
 
 ## Checklist rápido
-- [ ] BaseController creado/extendido (si ≥2 controladores)
-- [ ] Modelos definidos (fuente de datos + viewModel)
+- [ ] App.controller.js creado/extendido (si ≥2 controladores)
+- [ ] Modelos definidos (fuente de datos + JSONModel registrado como `"view"`)
 - [ ] `onInit` con modelos, router attach y MessageManager
 - [ ] `onRouteMatched` con carga de datos y parámetros de ruta
 - [ ] `onExit` con detach de todos los listeners

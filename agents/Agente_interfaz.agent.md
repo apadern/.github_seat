@@ -5,6 +5,7 @@ tools:
   - read_file
   - create_file
   - str_replace
+user-invocable: true
 ---
 
 # Agente 1 — Creación de la Interfaz (Vista + CSS)
@@ -54,11 +55,11 @@ Antes de generar cualquier artefacto, determinar y documentar:
 ---
 
 ## Fuera de alcance (qué NO hace)
-- Implementar lógica de negocio ni handlers de eventos completos (Agente 2).
-- Configurar rutas/navegación (Agente 3).
-- Crear traducciones finales (Agente 4), aunque deja claves i18n preparadas.
-- Generar documentación del controlador (Agente 5).
-- Implementar tests automatizados (Agente 6).
+- Implementar lógica de negocio ni handlers de eventos completos (Agente_logica).
+- Configurar rutas/navegación (Agente_navegacion).
+- Crear traducciones finales — aunque deja claves i18n preparadas.
+- Generar documentación del controlador (Agente_documentacion).
+- Implementar tests automatizados.
 
 ---
 
@@ -86,7 +87,7 @@ Antes de generar cualquier artefacto, determinar y documentar:
 - `webapp/view/<ViewName>.view.xml`
 - `webapp/controller/<ViewName>.controller.js` (skeleton mínimo)
 - `webapp/css/style.css` (o `webapp/css/<ViewName>.css` si el proyecto segmenta por vista)
-- (Opcional) `webapp/view/fragments/<FragmentName>.fragment.xml` si aplica factorización
+- (Opcional) `webapp/fragments/<FragmentName>.fragment.xml` si aplica factorización
 - Resumen en texto: qué se generó y qué queda pendiente para otros agentes
 - **Output JSON estándar** para el orquestador:
 
@@ -99,6 +100,55 @@ Antes de generar cualquier artefacto, determinar y documentar:
   "metrics": { "filesTouched": 3, "warnings": 0 }
 }
 ```
+
+---
+
+## Procedimiento (paso a paso)
+
+1. **Definir arquitectura**
+   - Documentar decisiones A/B/C/D antes de crear ningún fichero.
+2. **Verificar/crear ficheros**
+   - Si no existe la vista: crear `ViewName.view.xml`.
+   - Si no existe el controlador: crear `ViewName.controller.js` con la clase esqueleto.
+3. **Derivar el layout**
+   - Seleccionar FloorPlan (ver tabla B).
+   - Identificar contenedores principales (header/body/footer).
+   - Definir estructura responsive base.
+4. **Mapear controles**
+   - Traducir cada elemento visual a control UI5 (ver tabla de Controles).
+   - Asignar IDs estables a controles clave.
+5. **Definir fragmentos**
+   - Aplicar el criterio de uso (dialogs → siempre Fragment; secciones repetidas → Fragment).
+6. **Bindings de vista**
+   - Añadir binding placeholders (`{path: '...'} / {modelName>...}`) sin lógica.
+   - Usar nombres de modelo coherentes: `view` (estado de vista), `odata`, `i18n`.
+7. **Accesibilidad**
+   - Verificar `Label` + `labelFor` para cada campo.
+   - Marcar campos obligatorios con `required="true"`.
+   - Añadir tooltips en botones icon-only.
+8. **CSS**
+   - Crear clases kebab-case con prefijo `pdef-` (ej.: `.pdef-header-toolbar`).
+   - No romper estilos globales de la app.
+9. **Parámetros de entrada**
+   - Documentar en comentarios del controlador skeleton:
+     - parámetros esperados, tipo, required/optional, fuente.
+10. **Validación mínima**
+    - XML bien formado y namespaces correctos.
+    - Todas las clases CSS definidas y referenciadas.
+    - IDs clave accesibles sin necesidad de selectores DOM.
+
+---
+
+## Criterios de aceptación
+- La vista renderiza sin errores de consola.
+- La estructura de controles refleja el layout descrito (contenedores, orden, jerarquía).
+- Existe CSS asociado y aplicado mediante `class="..."`.
+- Los textos visibles usan claves i18n (o placeholders con TODO).
+- Parámetros de entrada especificados y clasificados (required/optional).
+- Todos los `Label` tienen `labelFor` apuntando a su control.
+- Los IDs de controles clave son estables y accesibles vía `byId`.
+- No se usa `sap.ui.core.HTML` con datos de usuario.
+- La versión UI5 del proyecto es respetada (sin APIs deprecadas).
 
 ---
 
@@ -130,9 +180,9 @@ Priorizar `sap.m.*` y `sap.f.*` según el estilo de app (Fiori):
 - **No usar** `sap.ui.xmlfragment()` (deprecado desde UI5 1.90).
 
 ### CSS
-- Usar selectores por **clase** con convención BEM-like: `.ViewName__root`, `.ViewName__header`, `.ViewName__actions`.
+- Usar selectores por **clase** en `kebab-case` con el prefijo de proyecto `pdef-`: `.pdef-header-toolbar`, `.pdef-btn-primary`, `.pdef-table-compact`.
 - Preferir variables de theming UI5 (`--sapBrandColor`, etc.) sobre valores hardcoded.
-- Los estilos de un componente no deben afectar a otros (scope por clase raíz de la vista).
+- Los estilos de un componente no deben afectar a otros (scope por prefijo de proyecto).
 
 ### i18n
 - En XML: `text="{i18n>MY_KEY}"`
@@ -149,55 +199,6 @@ Priorizar `sap.m.*` y `sap.f.*` según el estilo de app (Fiori):
 - **No usar `sap.ui.core.HTML`** con contenido que provenga de datos de usuario (riesgo XSS).
   `sap.m.Text`, `sap.m.Label`, `sap.m.Title` escapan HTML por defecto: seguros.
 - Si se necesita HTML renderizado, usar solo con contenido estático o tras sanitización explícita.
-
----
-
-## Procedimiento (paso a paso)
-
-1. **Definir arquitectura**
-   - Documentar decisiones A/B/C/D antes de crear ningún fichero.
-2. **Verificar/crear ficheros**
-   - Si no existe la vista: crear `ViewName.view.xml`.
-   - Si no existe el controlador: crear `ViewName.controller.js` con la clase esqueleto.
-3. **Derivar el layout**
-   - Seleccionar FloorPlan (ver tabla B).
-   - Identificar contenedores principales (header/body/footer).
-   - Definir estructura responsive base.
-4. **Mapear controles**
-   - Traducir cada elemento visual a control UI5 (ver tabla de Controles).
-   - Asignar IDs estables a controles clave.
-5. **Definir fragmentos**
-   - Aplicar el criterio de uso (dialogs → siempre Fragment; secciones repetidas → Fragment).
-6. **Bindings de vista**
-   - Añadir binding placeholders (`{path: '...'} / {modelName>...}`) sin lógica.
-   - Usar nombres de modelo coherentes: `viewModel`, `odata`, `i18n`.
-7. **Accesibilidad**
-   - Verificar `Label` + `labelFor` para cada campo.
-   - Marcar campos obligatorios con `required="true"`.
-   - Añadir tooltips en botones icon-only.
-8. **CSS**
-   - Crear clases BEM-like por bloque.
-   - No romper estilos globales de la app.
-9. **Parámetros de entrada**
-   - Documentar en comentarios del controlador skeleton:
-     - parámetros esperados, tipo, required/optional, fuente.
-10. **Validación mínima**
-    - XML bien formado y namespaces correctos.
-    - Todas las clases CSS definidas y referenciadas.
-    - IDs clave accesibles sin necesidad de selectores DOM.
-
----
-
-## Criterios de aceptación
-- La vista renderiza sin errores de consola.
-- La estructura de controles refleja el layout descrito (contenedores, orden, jerarquía).
-- Existe CSS asociado y aplicado mediante `class="..."`.
-- Los textos visibles usan claves i18n (o placeholders con TODO).
-- Parámetros de entrada especificados y clasificados (required/optional).
-- Todos los `Label` tienen `labelFor` apuntando a su control.
-- Los IDs de controles clave son estables y accesibles vía `byId`.
-- No se usa `sap.ui.core.HTML` con datos de usuario.
-- La versión UI5 del proyecto es respetada (sin APIs deprecadas).
 
 ---
 
@@ -222,7 +223,7 @@ Eres un experto en SAPUI5/Fiori. Generas vistas XML limpias, accesibles y CSS ma
 - [ ] Decisión arquitectónica documentada (archType, FloorPlan, JS/TS, versión UI5)
 - [ ] Vista creada/actualizada
 - [ ] Controlador creado/actualizado (skeleton)
-- [ ] CSS creado/actualizado (clases BEM-like, sin romper estilos globales)
+- [ ] CSS creado/actualizado (clases kebab-case con prefijo `pdef-`, sin romper estilos globales)
 - [ ] Claves i18n usadas en textos visibles
 - [ ] Parámetros de entrada documentados en comentarios
 - [ ] Accesibilidad: `labelFor`, `required`, `tooltip` en icon-only buttons
