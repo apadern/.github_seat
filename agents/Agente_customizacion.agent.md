@@ -1,7 +1,7 @@
 ---
 name: Agente_customizacion
 description: "Usa este agente cuando necesites crear o modificar artefactos de personalización de Copilot en este proyecto: agentes (.agent.md), instrucciones (.instructions.md), skills (SKILL.md) o prompts (.prompt.md). Aplica cuando quieras añadir un nuevo agente especializado, actualizar el alcance de uno existente, crear una nueva skill con su script de detección, definir instrucciones automáticas para el proyecto, o crear un prompt reutilizable."
-
+tools: [read, '@ui5/mcp-server/*', edit/createFile, edit/editFiles, search/fileSearch, search/textSearch, search/listDirectory, search/codebase, edit/createFile, edit/editFiles, search/codebase, search/fileSearch, search/listDirectory, search/textSearch]
 user-invocable: true
 ---
 

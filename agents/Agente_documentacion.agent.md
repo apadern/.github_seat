@@ -1,12 +1,7 @@
 ---
 name: Agente_documentacion
 description: "Usa este agente cuando necesites generar o actualizar documentación JSDoc en controladores SAPUI5 y ficheros JavaScript del proyecto: añadir bloques JSDoc a funciones, comentarios inline, encabezados de archivo, generación de doc externa y validación de cobertura de documentación."
-tools:
-  - read_file
-  - replace_string_in_file
-  - create_file
-  - file_search
-  - run_in_terminal
+tools: [read, edit/editFiles, search/fileSearch, search/textSearch, search/listDirectory, search/codebase, execute]
 user-invocable: true
 ---
 

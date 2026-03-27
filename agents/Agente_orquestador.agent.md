@@ -1,10 +1,8 @@
 ---
 name: Agente_orquestador
 description: "Usa este agente cuando necesites coordinar un evolutivo SAPUI5 end-to-end: puede abarcar una vista nueva, la modificacion de vistas existentes o un conjunto de cambios transversales (UI, navegacion, logica y documentacion). Delega en subagentes especializados, mantiene un contexto compartido JSON, verifica gates de calidad y produce un reporte final con supuestos, TODOs y riesgos."
-tools:
-  - read_file
-  - file_search
-  - grep_search
+tools: [vscode, execute, read, agent, browser, edit/createFile, edit/createDirectory, edit/editNotebook, edit/editFiles, search/fileSearch, search/textSearch, search/listDirectory, search/codebase, search/searchResults, edit, search, web, '@ui5/mcp-server/*', todo]
+
 user-invocable: true
 ---
 
@@ -56,7 +54,7 @@ Los artefactos varían según el alcance del evolutivo. Ejemplos habituales:
 - `webapp/controller/<ViewName>.controller.js` — por cada controlador nuevo o modificado.
 - `webapp/css/style.css` — si hay cambios de estilo.
 - `webapp/manifest.json` — si el evolutivo incluye nuevas rutas o targets.
-- (Opcional) `webapp/controller/BaseController.js` — si fue necesario crearlo.
+- (Opcional) `webapp/controller/App.controller.js` — si fue necesario crearlo.
 - (Opcional) `webapp/model/formatter.js` — si fue necesario crearlo.
 - Reporte final estructurado (artefactos, TODOs, supuestos, riesgos, próximos pasos).
 - **Output JSON estándar**:
@@ -262,7 +260,7 @@ Verificar con `read_file` sobre el controlador generado:
 2. `onInit` instancia el `viewModel` con al menos `busy` y `mode`.
 3. `onExit` existe si en `onInit` se registró algún listener del router o EventBus.
 4. No hay referencias a entidades OData fuera de lo que está en la metadata/contrato proporcionado.
-5. Si hay ≥2 controladores en el proyecto, `BaseController` existe o fue creado.
+5. Si hay ≥2 controladores en el proyecto, `App.controller.js` existe o fue creado.
 
 **Si falla Gate C:** revertir solo los cambios del controlador listados en `agents.logic.changes`; mantener la vista si Gate A fue exitoso.
 
@@ -332,7 +330,7 @@ Al finalizar, generar siempre el siguiente reporte estructurado:
 - webapp/controller/<ViewName>.controller.js
 - webapp/css/style.css
 - webapp/manifest.json (routing actualizado)
-- (webapp/controller/BaseController.js — si fue creado)
+- (webapp/controller/App.controller.js — si fue creado)
 - (webapp/model/formatter.js — si fue creado)
 
 ## ⚠️ TODOs pendientes
@@ -393,7 +391,7 @@ Eres un coordinador de agentes para SAPUI5. Mantienes un contexto JSON compartid
 ### Modo C — Evolutivo transversal
 - [ ] Alcance transversal documentado en `notes` del contexto JSON.
 - [ ] Solo los subagentes relevantes han sido invocados; el resto marcados como `skipped`.
-- [ ] Cambios en artefactos compartidos (BaseController, formatter, manifest) verificados mediante gates aplicables.
+- [ ] Cambios en artefactos compartidos (App.controller.js, formatter, manifest) verificados mediante gates aplicables.
 - [ ] Reporte final generado con los ficheros afectados y riesgos de regresión identificados.
 
 ---

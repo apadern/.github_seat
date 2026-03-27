@@ -1,10 +1,7 @@
 ---
 name: Agente_logica
 description: "Usa este agente cuando necesites implementar la logica funcional de un controlador SAPUI5: modelos de datos (OData V2/V4, REST, Mock), handlers de eventos, operaciones CRUD, BaseController, formatters, lifecycle completo con onExit, mensajeria al usuario, validaciones de UI y estado de viewModel."
-tools:
-  - read_file
-  - str_replace
-  - create_file
+tools: [read, edit/createFile, edit/editFiles, search/fileSearch, search/textSearch, search/listDirectory, search/codebase, '@ui5/mcp-server/*']
 user-invocable: true
 ---
 
@@ -64,7 +61,7 @@ Implementar la **lógica funcional** de la pantalla en el controlador SAPUI5, in
 ## Salidas (artefactos)
 - `webapp/controller/<ViewName>.controller.js` actualizado con lógica completa.
 - (Si no existe) `webapp/controller/App.controller.js` como controlador base
-- (Si no existe) `webapp/model/formatter.js`
+- (Si no existe) `webapp/utils/formatter.js`
 - (Opcional) `webapp/utils/<ServiceHelper>.js` para acceso a datos reutilizable.
 - Resumen de endpoints/entidades consumidas y bindings usados.
 - **Output JSON estándar** para el orquestador:
@@ -97,6 +94,32 @@ Implementar la **lógica funcional** de la pantalla en el controlador SAPUI5, in
 - write: `oModel.create("/EntitySet", payload, { success, error })`
 - `oModel.update()` / `oModel.remove()` con key absoluta.
 
+**Patrón del proyecto de referencia (`proceduresdefinitionui5`) — `manageCAP.js`**:
+El proyecto centraliza todas las llamadas OData V2 en `webapp/utils/manageCAP.js`, que envuelve las operaciones en `Promise` y gestiona las cabeceras personalizadas. Los controladores NO llaman al modelo directamente; en su lugar usan:
+
+| Método | Operación HTTP | Firma |
+|---|---|---|
+| `manageCAP.loadData(path, urlParameters, filters, that, header?, modelName?)` | GET | Devuelve `Promise` |
+| `manageCAP.createData(path, object, that, header?)` | POST | Devuelve `Promise` |
+| `manageCAP.updateData(path, object, that, header?)` | PUT | Devuelve `Promise` |
+| `manageCAP.removeData(path, urlParameters, filters, that, header?)` | DELETE | Devuelve `Promise` |
+| `manageCAP.checkKeyUser(callbackSuccess, callbackError, component)` | GET `/checkKeyUserNP` | Verifica permisos del usuario |
+
+El parámetro `that` es el contexto del controlador (permite acceder al OData model via `that.getModel("CAP_MC_MODEL")`). Los modelos `CAP_MODEL`, `CAP_MC_MODEL` y `CAP_NO_BATCH_MODEL` se registran en `manifest.json` y la carga de datos usa `CAP_MC_MODEL` por defecto.
+
+Ejemplo de uso en un controlador:
+```javascript
+manageCAP.loadData("/ProcedureSet", { "$expand": "steps" }, aFilters, t)
+    .then(function(oData) {
+        t.getView().setModel(new JSONModel(oData), "procedures");
+        sap.ui.core.BusyIndicator.hide();
+    })
+    .catch(function(err) {
+        sap.ui.core.BusyIndicator.hide();
+        t.genericError(err);
+    });
+```
+
 ### REST genérico
 - `jQuery.ajax` o `fetch` con headers apropiados (Authorization, Content-Type).
 - Envolver respuesta en `JSONModel` o helper de servicio.
@@ -114,8 +137,8 @@ El proyecto usa `webapp/controller/App.controller.js` como controlador base. **N
 
 ```javascript
 // webapp/controller/App.controller.js
-sap.ui.define(["sap/ui/core/mvc/Controller", "sap/ui/core/routing/History"],
-  function(Controller, History) {
+sap.ui.define(["sap/ui/core/mvc/Controller"],
+  function(Controller) {
     "use strict";
     return Controller.extend("<namespace>.controller.App", {
         getRouter: function() {
@@ -129,15 +152,9 @@ sap.ui.define(["sap/ui/core/mvc/Controller", "sap/ui/core/routing/History"],
         },
         getText: function(sKey, aArgs) {
             return this.getModel("i18n").getResourceBundle().getText(sKey, aArgs);
-        },
-        onNavBack: function() {
-            var oHistory = History.getInstance();
-            if (oHistory.getPreviousHash() !== undefined) {
-                window.history.go(-1);
-            } else {
-                this.getRouter().navTo("RouteMain", {}, true);
-            }
         }
+        //onNavBack: implementado por Agente_navegacion según el tipo de routing del proyecto /
+        //onNavBack: implemented by Agente_navegacion according to the project routing type
     });
 });
 ```
@@ -160,6 +177,8 @@ function (AppController) {
 
 Si ya existe `App.controller.js`, **extenderlo** sin duplicar helpers.
 
+> **Estado en el proyecto de referencia `proceduresdefinitionui5`**: `App.controller.js` existe pero actualmente sólo contiene un `onInit` vacío. Los controladores del proyecto extienden `sap/ui/core/mvc/Controller` directamente por razones históricas. Al crear un nuevo controlador, extender `App.controller` de todas formas — cuando se enriquezca con los helpers anteriores, los controladores hijos los heredarán automáticamente sin cambios. El acceso al router en el proyecto se hace directamente con `sap.ui.core.UIComponent.getRouterFor(t)` en lugar del helper `getRouter()` de App.controller; ambos son equivalentes, pero mantener coherencia con el código existente del proyecto.
+
 ---
 
 ## Lifecycle completo del controlador
@@ -169,7 +188,7 @@ Si ya existe `App.controller.js`, **extenderlo** sin duplicar helpers.
 | `onInit` | Siempre: inicializar modelos, attach al router, configurar MessageManager |
 | `onBeforeRendering` | Preparar datos que deben estar listos antes del primer render |
 | `onAfterRendering` | Acceder al DOM o integrar librerías externas (uso excepcional) |
-| `onRouteMatched` | Cuando la vista tiene ruta con parámetros (leer params y cargar datos) |
+| `_handleRouteMatched` | Cuando la vista tiene ruta con parámetros (leer params y cargar datos). El proyecto de referencia usa `handleRouteMatched` (público) por razones históricas; en código nuevo seguir la convención de prefijo `_`. |
 | `onExit` | **Siempre que haya event listeners o subscripciones**: detach del router, EventBus, timers — **previene memory leaks** |
 
 > `onExit` es obligatorio si se usa `attachRouteMatched`, `attachEvent`, `EventBus.subscribe` o cualquier timer. Toda subscripción creada en `onInit` debe tener su `detach`/`unsubscribe` en `onExit`.
@@ -193,10 +212,12 @@ this.getView().setModel(oViewModel, "view");
 
 Usar en la vista: `enabled="{view>/editEnabled}"`, `busy="{view>/busy}"`.
 
+> **Convención del proyecto de referencia `proceduresdefinitionui5`**: los controladores registran el viewModel como `"VIEW_MODEL"` en lugar de `"view"`. Al trabajar dentro de este proyecto, mantener `"VIEW_MODEL"` para coherencia (`setModel(oViewModel, "VIEW_MODEL")`); en proyectos nuevos creados desde cero, seguir la convención `"view"`.
+
 ---
 
 ## Formatter pattern
-Los formatters convierten valores del modelo para presentación. Se ubican en `webapp/model/formatter.js`:
+Los formatters convierten valores del modelo para presentación. Se ubican en `webapp/utils/formatter.js`:
 
 ```javascript
 sap.ui.define([], function() {
@@ -213,6 +234,8 @@ En el controlador: `this.formatter = formatter;`
 En el XML: `text="{path: 'status', formatter: '.formatter.formatStatus'}"`
 
 > Separar formatters en fichero independiente facilita **unit testing con QUnit** sin instanciar controlador ni vista.
+
+> **Formatters con i18n**: `formatter.js` no tiene acceso directo al resource bundle. Si el formatter necesita textos traducidos, pasar los textos ya resueltos como partes adicionales del binding: `{ parts: [{ path: 'status' }, { path: 'i18n>STATUS_A' }, { path: 'i18n>STATUS_I' }], formatter: '.formatter.formatStatus' }`. Alternativamente, usar expression binding directamente en la vista para evitar el formatter.
 
 ---
 
@@ -232,44 +255,57 @@ Todos los textos de mensajes deben usar i18n: `this.getText("MSG_SAVED")`.
 
 ## Procedimiento (paso a paso)
 
-1. **Inventario de eventos**
+1. **Exploración previa (obligatoria)**
+   - Si el controlador ya existe: leerlo completo antes de cualquier modificación; conservar toda la lógica actual.
+   - Leer `manifest.json` → namespace, versión UI5 y modelos ya configurados en Component.js.
+   - Revisar si existe `webapp/utils/constants.js`; usar sus constantes en lugar de valores literales en el código.
+   - Revisar el skeleton generado por Agente_interfaz: identificar el `viewModel` inicial ya definido y los bindings declarados en la vista para mantener coherencia.
+2. **Inventario de eventos**
    - Leer la vista XML y listar todos los eventos declarados (press, change, etc.).
-2. **BaseController**
+3. **BaseController**
    - Verificar si existe. Si no y hay ≥2 controladores: crear. Si existe: extender.
-3. **Inicialización (`onInit`)**
-   - Instanciar viewModel con estado inicial y registrarlo como `"view"`.
+4. **Inicialización (`onInit`)**
+   - Instanciar viewModel con estado inicial y registrarlo (usar `"VIEW_MODEL"` en el proyecto de referencia, `"view"` en proyectos nuevos).
+   - Respetar las propiedades del viewModel ya definidas en el skeleton del controlador.
+   - **Propiedades via modelo**: gestionar todas las propiedades de estado de la vista (enabled, visible, busy, texto dinámico) a través del `viewModel` JSON mediante binding, no hardcodeando valores en la vista. Excepción: IDs de controles cuando sean necesarios por razones técnicas.
    - Configurar modelo de datos (OData/REST) si no está en Component.js.
-   - Attachar al router: `this.getRouter().getRoute("...").attachPatternMatched(this._onRouteMatched, this)`.
+   - Attachar al router: `this.getRouter().getRoute("...").attachPatternMatched(this._handleRouteMatched, this)`. En el proyecto de referencia se usa `sap.ui.core.UIComponent.getRouterFor(t).getRoute("...").attachPatternMatched(t.handleRouteMatched, t)`; ambos son equivalentes.
    - Registrar MessageManager si aplica.
-4. **Carga de datos (`_onRouteMatched`)**
+5. **Carga de datos (`_handleRouteMatched`)**
    - Leer parámetros de ruta.
+   - **Navegación a detalle**: al navegar desde un listado a una pantalla de detalle, pasar únicamente la **clave primaria** del registro como parámetro de ruta (definido en `manifest.json`). El controlador de detalle carga sus propios datos a partir de esa clave en `_handleRouteMatched`. No pasar objetos de datos completos entre pantallas.
    - Activar busy state.
    - Llamar a `_loadEntity(...)` o similar.
    - Desactivar busy al completar (éxito y error).
-5. **Operaciones de datos**
+6. **Operaciones de datos**
    - `_loadEntity(...)` — lectura individual
    - `_loadList(...)` — lectura de lista con filtros/orden
    - `_loadValueHelps(...)` — carga de datos auxiliares (combos, etc.)
    - `_save(...)` — creación/actualización
    - `_delete(...)` — borrado (con confirmación vía MessageBox)
    - Usar `$select` y `$expand` solo con propiedades necesarias.
-6. **Validaciones**
+   - Usar constantes de `webapp/utils/constants.js` para URLs, códigos de estado y valores fijos.
+   - **Proyecto de referencia**: delegar las llamadas OData V2 a `manageCAP.js` (importar como `"../utils/manageCAP"`). Ver la tabla de métodos disponibles en la sección OData V2. El patrón `.then().catch()` con `sap.ui.core.BusyIndicator` activa/desactiva la espera global.
+7. **Validaciones**
    - Validaciones sincrónicas: campos requeridos, formato, rango.
    - Usar `valueState="Error"` / `valueStateText` en controles para feedback visual.
    - Validaciones asíncronas (duplicados, reglas backend) si existen.
    - Bloquear acción de guardado si hay errores.
-7. **UX**
+8. **UX**
    - Busy indicators al iniciar/finalizar operaciones asíncronas.
+   - **Busy a nivel de componente**: cuando se cargan datos para un componente específico (tabla, lista, panel), activar el busy en ese componente directamente (`oControl.setBusy(true)` / `oControl.setBusy(false)`) en lugar de hacerlo a nivel de vista. El busy de vista (`getView().setBusy(true)`) solo se usa para operaciones que bloquean toda la pantalla.
+   - **Patrón del proyecto de referencia**: se usa `sap.ui.core.BusyIndicator.show(0)` y `sap.ui.core.BusyIndicator.hide()` como indicador global de carga (bloquea toda la UI). Usarlo para flujos de autenticación/primera carga de datos. Siempre llamar a `hide()` tanto en el callback de éxito como en el de error.
    - Mensajes de éxito/error según tabla de mensajería.
    - Rollback de cambios si el usuario cancela (restaurar viewModel a estado previo).
-8. **Robustez**
+   - **Gestión de diálogos**: guardar la referencia del dialog en `this._oXxxDialog`. Comprobar si ya fue instanciado antes de volver a crear (`if (!this._oXxxDialog) { Fragment.load(...).then(...) }`). Destruirlo en `onExit` (`this._oXxxDialog.destroy()`).
+9. **Robustez**
    - Parser de errores de respuesta: `responseText`, `error.message`, mensajes OData.
    - Evitar duplicidad de requests (deshabilitar botón mientras hay request activo).
    - Control de concurrencia: verificar si el componente sigue montado antes de actualizar modelo en callbacks.
-9. **Lifecycle `onExit`**
-   - Detach de todos los handlers registrados en `onInit` y `onRouteMatched`.
-   - Destruir objetos que no se gestionen solos (timers, subscripciones EventBus).
-10. **Testabilidad**
+10. **Lifecycle `onExit`**
+    - Detach de todos los handlers registrados en `onInit` y `_handleRouteMatched`.
+    - Destruir objetos que no se gestionen solos (timers, subscripciones EventBus, dialogs cargados con `Fragment.load`).
+11. **Testabilidad**
     - Separar acceso a datos en funciones privadas con nombre descriptivo.
     - Evitar lógica en callbacks anidados; usar `async/await` si el stack lo permite.
     - Formatters en fichero separado para unit testing puro.
@@ -289,6 +325,8 @@ Todos los textos de mensajes deben usar i18n: `this.getText("MSG_SAVED")`.
 - **`$select` y `$expand`**: solicitar solo las propiedades necesarias en cada request.
 - **`growing: true`** en tablas largas (paginación) con `growingThreshold` ajustado.
 - **Agrupar requests iniciales**: usar `$batch` (V2) o un único `bindContext` con `$expand` (V4) para la carga inicial.
+- **`setProperty()` vs `refresh()`**: usar siempre `setProperty("/prop", value)` para actualizar una propiedad concreta; llamar a `refresh()` únicamente cuando sea indispensable resincronizar el modelo completo con su fuente de datos.
+- **Expression binding**: para lógica trivial de presentación (comparaciones directas, ternarios simples), usar expression binding en la vista (`{= ${status} === 'A' ? 'Success' : 'Error'}`) en lugar de crear un formatter independiente.
 
 ---
 
@@ -327,7 +365,7 @@ Registrar siempre como `"view"`: `this.getView().setModel(oViewModel, "view")`.
 Binding en XML: `enabled="{view>/editEnabled}"`.
 
 ### Formatters
-Ubicar en `webapp/model/formatter.js`. Importar en el controlador y asignar a `this.formatter`.
+Ubicar en `webapp/utils/formatter.js`. Importar en el controlador como `"../utils/formatter"` y asignar a `this.formatter`.
 
 ### Acceso a datos reutilizable
 Si la lógica de acceso a datos se comparte entre controladores, extraer a `webapp/utils/<ServiceHelper>.js` (no `webapp/service/`).
@@ -352,16 +390,24 @@ Eres un experto en SAPUI5. Implementas controladores mantenibles, con lifecycle 
 ---
 
 ## Checklist rápido
+- [ ] Controlador existente leído completo antes de modificar
+- [ ] `constants.js` consultado; constantes usadas en lugar de literales
 - [ ] App.controller.js creado/extendido (si ≥2 controladores)
-- [ ] Modelos definidos (fuente de datos + JSONModel registrado como `"view"`)
+- [ ] Modelos definidos (fuente de datos + JSONModel registrado como `"VIEW_MODEL"` en el proyecto de referencia, `"view"` en proyectos nuevos)
+- [ ] Propiedades de estado (enabled, visible, busy) gestionadas vía `viewModel`, no hardcodeadas
+- [ ] viewModel coherente con el skeleton generado por Agente_interfaz
 - [ ] `onInit` con modelos, router attach y MessageManager
-- [ ] `onRouteMatched` con carga de datos y parámetros de ruta
-- [ ] `onExit` con detach de todos los listeners
+- [ ] `_handleRouteMatched` con carga de datos y parámetros de ruta
+- [ ] Navegación a detalle: solo clave primaria por parámetro de ruta; el detalle carga sus propios datos
+- [ ] Busy a nivel de componente (tabla, lista) para cargas de datos parciales; busy de vista solo para operaciones que bloquean toda la pantalla
+- [ ] `onExit` con detach de todos los listeners y `destroy` de dialogs
 - [ ] CRUD implementado con separación en funciones `_private`
 - [ ] Validaciones con `valueState` en controles
 - [ ] Mensajería correcta por tipo (Toast/Box/Strip/MessageView)
 - [ ] CSRF gestionado (si OData V2)
 - [ ] Formatters en fichero independiente
+- [ ] Gestión de dialogs: referencia en `this._oXxxDialog`, lazy load, destroy en `onExit`
+- [ ] `setProperty()` usado para actualizaciones de propiedades individuales
 - [ ] Lazy loading de fragments (no en `onInit`)
 - [ ] Datos sensibles no logueados en consola
 - [ ] Output JSON estándar generado
