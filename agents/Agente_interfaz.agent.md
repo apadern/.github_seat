@@ -13,6 +13,8 @@ Crear o completar una vista SAPUI5 y el skeleton de su controlador, construyendo
 ---
 
 ## Decisión arquitectónica inicial (obligatoria)
+> **Comportamiento por defecto**: cuando se trabaja sobre un proyecto existente, leer `manifest.json` y 1-2 ficheros existentes para inferir namespace, versión UI5, lenguaje y estilo. Aplicar las decisiones A/B/C/D automáticamente sin pedir confirmación al usuario. Solo interrumpir para preguntar cuando la descripción sea genuinamente ambigua (p. ej. el FloorPlan no se puede deducir) o cuando el usuario haya indicado explícitamente una preferencia distinta.
+
 Antes de generar cualquier artefacto, determinar y documentar:
 
 ### A) Tipo de aplicación
@@ -48,7 +50,8 @@ Responder primero: **¿cuántos niveles de navegación tiene la pantalla?**
 - **`typescript`** — ES modules: `import Controller from "sap/ui/core/mvc/Controller"`
 
 ### D) Versión UI5
-- **`1.108+`** — APIs modernas: `XMLView.create()`, `Fragment.load()`
+- **`latest (edge)`** *(predeterminado)* — Usar la versión cargada en `index.html` del proyecto (habitualmente `data-sap-ui-compatVersion="edge"`, sin fijar versión explícita). APIs modernas disponibles: `XMLView.create()`, `Fragment.load()`.
+- **`específica (≥1.108)`** — Cuando el proyecto fija una versión concreta en `index.html` o `manifest.json`, respetar esa versión y sus APIs.
 - **`legacy (<1.108)`** — APIs anteriores: `sap.ui.xmlview()`, `sap.ui.xmlfragment()`
 
 ---
@@ -75,6 +78,8 @@ Responder primero: **¿cuántos niveles de navegación tiene la pantalla?**
 ---
 
 ## Entradas esperadas
+> **Nota**: para proyectos existentes el agente infiere namespace, versión UI5, language y estructura de carpetas leyendo `manifest.json` y los ficheros del proyecto. Solo son entradas obligatorias que el usuario debe aportar el nombre de la vista y la descripción de UI. El resto se deduce del código salvo indicación contraria.
+
 1. **Nombre de la vista** (ej.: `CustomerDetail`) y **namespace** del proyecto (ej.: `com.mycompany.myapp`).
 2. **Decisiones arquitectónicas** (ver sección anterior):
    - `archType`: `freestyle` | `fiori-elements`
@@ -170,13 +175,13 @@ Responder primero: **¿cuántos niveles de navegación tiene la pantalla?**
 8. **Accesibilidad**
    - Verificar `Label` + `labelFor` para cada campo.
    - Marcar campos obligatorios con `required="true"`.
-   - Añadir tooltips en botones icon-only.
+   - Añadir `tooltip` **obligatorio** en botones icon-only (sin texto visible).
+   - En el resto de controles (Label, Text, Input, etc.) el `tooltip` es **opcional**; añadirlo solo si el contenido visible no es autoexplicativo por sí solo.
 9. **CSS**
-   - Crear clases kebab-case con prefijo `pdef-` (ej.: `.pdef-header-toolbar`).
+   - Usar `camelCase` para nuevas clases CSS, coherente con la convención real del proyecto en `style.css` (ej.: `.btnHeader`, `.tableMenu`, `.tileLayout2`). El prefijo `pdef-` de `ux.instructions.md` es teórico; el código existente usa `camelCase`, que tiene precedencia.
    - No romper estilos globales de la app.
 10. **Parámetros de entrada**
-    - Documentar en comentarios del controlador skeleton:
-      - parámetros esperados, tipo, required/optional, fuente.
+    - Si la vista recibe parámetros externos, documentarlos en el bloque `@description` del `onInit` del controlador skeleton, siguiendo las convenciones de `jsdoc.instructions.md`. Indicar nombre, tipo, required/optional y fuente (`route params` | `component data` | `startup params`). No duplicar con comentarios inline `//` — toda la documentación va en el bloque JSDoc.
 11. **Aplicar checklist UX**
     - Revisar y aplicar **todos** los puntos del checklist de `ux.instructions.md`.
 12. **Validación mínima**
@@ -299,9 +304,9 @@ Criterio de selección de contenedor:
 - **No usar** `sap.ui.xmlfragment()` (deprecado desde UI5 1.90).
 
 ### CSS
-- Usar selectores por **clase** en `kebab-case` con el prefijo de proyecto `pdef-`: `.pdef-header-toolbar`, `.pdef-btn-primary`, `.pdef-table-compact`.
+- Usar selectores por **clase** en `camelCase`, coherente con el proyecto de referencia `proceduresdefinitionui5` (ej.: `.btnHeader`, `.toolbar`, `.tableMenu`, `.tileLayout2`). Aunque `ux.instructions.md` recomienda el prefijo `pdef-` con `kebab-case`, el código existente del proyecto usa `camelCase`; el estilo del proyecto tiene precedencia.
 - Preferir variables de theming UI5 (`--sapBrandColor`, etc.) sobre valores hardcoded.
-- Los estilos de un componente no deben afectar a otros (scope por prefijo de proyecto).
+- Los estilos de un componente no deben afectar a otros; usar nombres descriptivos y específicos para evitar colisiones con clases SAP (`sapUi*`, `sapM*`).
 - Si el proyecto ya tiene estilos definidos en `webapp/css/style.css`, **no sobreescribirlos**; adaptar el nuevo CSS al estilo existente. En caso de conflicto entre un estilo del proyecto y uno definido por la convención del agente, **el estilo existente en el proyecto tiene precedencia**.
 
 ### i18n
@@ -312,7 +317,8 @@ Criterio de selección de contenedor:
 ### Accesibilidad (ARIA)
 - Cada `Input`, `Select`, `ComboBox`, etc. debe tener un `Label` con `labelFor` apuntando al ID del control.
 - Marcar campos obligatorios con `required="true"` en el control.
-- Añadir `tooltip` en botones que solo contienen icono (sin texto).
+- Añadir `tooltip` **obligatorio** en botones que solo contienen icono (sin texto visible); sin tooltip, el usuario no puede saber qué hace el botón y falla la accesibilidad ARIA.
+- En el resto de controles (Label, Text, Input con placeholder descriptivo, etc.) el `tooltip` es **opcional**: añadirlo solo cuando el contenido visible no sea suficientemente autoexplicativo.
 - Usar `ariaLabelledBy` en secciones de formulario sin label visible.
 
 ### Seguridad
