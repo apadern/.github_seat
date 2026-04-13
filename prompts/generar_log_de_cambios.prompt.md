@@ -114,6 +114,19 @@ Antes de insertar un nuevo `Heading2`, comprobar en este orden:
 - coincidencia por identificador de ticket (por ejemplo `BTPHR-1059`);
 - coincidencia normalizada ignorando mayúsculas/minúsculas, dobles espacios y signos menores.
 
+> **Crítico — cómo buscar**: la búsqueda del identificador de ticket **debe hacerse exclusivamente sobre el texto visible extraído de los `<w:t>` de párrafos con `<w:pStyle w:val="Heading2"/>`**, nunca sobre el XML en bruto del documento. Buscar en el XML completo produce falsas coincidencias con atributos como `w14:paraId`, `w:rsidR`, etc., que pueden contener los mismos dígitos que el número de ticket.
+
+Ejemplo correcto en Python:
+```python
+for m in re.finditer(r'<w:pStyle w:val="Heading2"/>', content):
+    p_start = content.rfind('<w:p ', 0, m.start())
+    p_end   = content.find('</w:p>', p_start) + 6
+    block   = content[p_start:p_end]
+    text    = ''.join(re.findall(r'<w:t[^>]*>([^<]+)</w:t>', block))
+    if 'BTPHR-795' in text:  # coincidencia sobre texto visible, no XML raw
+        # sección encontrada → reutilizar
+```
+
 Si ya existe una coincidencia por ticket, no crear un nuevo `Heading2`: reutilizar la sección existente.
 
 > **Importante**: si el `Heading2` candidato existe pero su texto está íntegramente dentro de elementos `w:del` (es decir, es una eliminación pendiente de aceptar), considerarlo como **no existente** y crear un nuevo `Heading2` con el título completo.

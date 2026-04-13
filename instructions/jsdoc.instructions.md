@@ -8,12 +8,28 @@ applyTo: '**'
 **Nota:** La librería `jsdoc` **no es obligatoria** en el repositorio. Si `jsdoc` no está instalada en el módulo, las instrucciones siguientes siguen siendo válidas si se usa `npx jsdoc` o si se instala `jsdoc` como dependencia de desarrollo. Más abajo se muestran ejemplos de ambos enfoques.
 
 **Directrices**:
-- Añadir explicación de codigo línea a línea solo cuando la lógica no sea autoexplicable. Los comentarios inline bilingües que superen ~80 caracteres se dividirán en varias líneas: primero las líneas en español y luego las líneas en inglés, usando ` /` al final de la última línea española como separador. Ejemplo:
+- **Comentarios inline**: añadir una explicación inline antes de cada bloque de lógica no trivial dentro de una función. El comentario va en la línea inmediatamente anterior al código que explica (nunca al final de la misma línea). Usar `//` para una sola línea y bloques `/* */` si el comentario ocupa más de dos líneas.
+  - **Cuándo son obligatorios**: condiciones de negocio complejas (`if/else` con varias ramas), transformaciones de datos, llamadas OData/REST, manipulaciones de modelos, lógica de navegación y cualquier bloque cuyo propósito no sea evidente por el nombre de la variable o función.
+  - **Cuándo no son necesarios**: asignaciones simples y directas (`var sTitle = "Hola"`), retornos triviales, llamadas a funciones con nombre autodescriptivo.
+  - **Cambios incrementales**: al modificar o añadir código en un fichero existente, se añaden comentarios inline a las líneas nuevas o modificadas aunque el resto del fichero no los tenga. No es necesario comentar retroactivamente todo el fichero; basta con documentar el delta del cambio.
+  - Los comentarios inline bilingües que superen ~80 caracteres se dividirán en varias líneas: primero las líneas en español y luego las líneas en inglés, usando ` /` al final de la última línea española como separador. Ejemplo:
   ```js
   //Descripción en español parte 1,
   //parte 2 /
   //English description part 1,
   //part 2
+  ```
+  - Ejemplo de bloque con comentarios inline correctos:
+  ```js
+  //Verificar que hay registros seleccionados antes de continuar /
+  //Check that there are selected records before continuing
+  var aSelected = oTable.getSelectedItems();
+  if (aSelected.length === 0) {
+      //Mostrar mensaje de validación y detener el flujo /
+      //Show validation message and stop the flow
+      MessageBox.warning(this._getText("msgNoSelection"));
+      return;
+  }
   ```
 - La documentación se aplica a **todos** los ficheros javascript propios del proyecto bajo `webapp/`, independientemente de la subcarpeta (`controller/`, `model/`, `utils/`, `helper/`, etc.), **excepto** los ficheros que sean librerías de terceros (vendor), los que estén dentro de la carpeta `test/` y el fichero `locate-reuse-libs.js`. Se consideran vendor aquellos ficheros que no han sido escritos por el equipo del proyecto; la forma más fiable de identificarlos es configurar `source.excludePattern` en `jsDocConf.json` para excluirlos.
 - Al inicio del archivo javascript, se añadirá un comentario con las etiquetas `@file`, `@namespace` y `@author`. La etiqueta `@namespace` será el nombre del controlador o en caso de js nombre de fichero y la etiqueta `@author` siempre será 'NTTData'. No usar las etiquetas `@name` ni `@lends` porque la plantilla para generar la documentación no las soporta y no se indexan correctamente en la documentación generada. En su lugar, usar `@namespace` a nivel de archivo y `@memberof` + `@method` a nivel de función para que cada función se indexe correctamente bajo el namespace del archivo.
@@ -69,6 +85,35 @@ Ejemplo de una función con parámetros de entrada y un valor de retorno:
     * @returns {Boolean}
     * @public
     */
+  ```
+
+- Las **variables y constantes** globales también deben documentarse mediante anotaciones JSDoc, siguiendo el mismo criterio que las funciones. Los comentarios se generarán antes de la declaración.
+  Siempre se añadirán las etiquetas `@description`, `@memberof`, `@type` y `@author`. Para constantes se añadirá además `@constant`. Si corresponde, también `@public`/`@private`.
+  - Si la variable o constante ya tiene anotaciones JSDoc, se debe **fusionar** con las directrices: conservar las etiquetas correctas del bloque existente y completar o corregir las que falten o sean incorrectas. **No añadir un nuevo bloque encima del existente** — el resultado debe ser un único bloque JSDoc por declaración.
+  - Si la variable o constante está comentada no se deben añadir anotaciones jsdoc ya que se trata de una lógica en desuso.
+
+Ejemplo de una constante:
+  ```
+  /**
+    * @description Tiempo máximo de espera para la solicitud / Maximum wait time for the request
+    * @memberof App
+    * @constant {number}
+    * @author NTTData
+    * @public
+    */
+  const MAX_TIMEOUT = 30000;
+  ```
+
+Ejemplo de una variable de módulo:
+  ```
+  /**
+    * @description Referencia al modelo de datos principal / Reference to the main data model
+    * @memberof App
+    * @type {sap.ui.model.json.JSONModel}
+    * @author NTTData
+    * @private
+    */
+  var _oDataModel;
   ```
 
   - Si el desarrollador esta conforme se debe generar carpeta jsDoc si esta no existe ya a nivel de modulo (carpeta padre de webapp). En caso de tener que generarla porque el proyecto todavia no la tiene se deben seguir los siguientes pasos:

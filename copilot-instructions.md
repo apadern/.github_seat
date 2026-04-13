@@ -145,6 +145,22 @@ onInit: function () {
 **Descripción general**: Todo el estilo personalizado que desee definir en una aplicación, que difiera del estilo predefinido de SAP, se declarará en el archivo `style.css` dentro de la carpeta "css" de la aplicación web.
 
 **Directrices**:
+- Añadir un comentario explicativo bilingüe antes de cada definición CSS (clase, variable, bloque `@media`, etc.). El formato sigue la misma convención que el resto del proyecto: español primero, inglés después, separados por ` / `. Los comentarios CSS usan la sintaxis `/* */`.
+Ejemplo:
+```css
+/* Barra de herramientas superior de la vista de lista /
+   Top toolbar of the list view */
+.pdef-header-toolbar {
+    background-color: var(--color-primary);
+}
+
+/* Color principal de la aplicación /
+   Main application color */
+:root {
+    --color-primary: #488cff;
+}
+```
+
 - SAPUI5 proporciona varias clases CSS predefinidas para añadir márgenes o relleno a un elemento visual.
 Ejemplo:
 ```
