@@ -202,12 +202,18 @@ h1 {
 ```
 
 ## 10. Formateo de Código
-**Formato de vistas**: Todas las vistas deben estar formateadas con **una línea por control visual**. Es decir, un control visual **no** debe dividirse en varias líneas por cada una de sus propiedades o eventos.
-Esta regla aplica a **todos los controles visuales**, **excepto** a `<mvc:View/>`, que **sí** se formateará con **una línea por cada propiedad declarada**.
-Ejemplo:
+**Formato de vistas**: Todas las vistas deben estar formateadas respetando un **máximo de 80 caracteres por línea**. Si un control visual supera los 80 caracteres en una sola línea, sus propiedades deben distribuirse en varias líneas aprovechando al máximo los 80 caracteres disponibles en cada fila (colocando tantas propiedades como quepan sin rebasar el límite, indentadas respecto a la apertura del control).
+Esta regla aplica a **todos los controles visuales**, **excepto** a `<mvc:View/>`, que **siempre** se formateará con **una propiedad por línea** independientemente de su longitud.
+Ejemplo de control que cabe en una línea (≤80 caracteres):
 ```
-<Button id="btnSave" text="Guardar" type="Emphasized" enabled="{/canSave}" press=".onSave" />
-<Input id="inpName" value="{/name}" placeholder="Nombre" liveChange=".onNameChange" />
+<Button id="btnSave" text="Guardar" press=".onSave" />
+```
+Ejemplo de control que supera los 80 caracteres (se divide):
+```
+<Button id="btnSave" text="Guardar" type="Emphasized"
+    enabled="{/canSave}" press=".onSave" />
+<Input id="inpName" value="{/name}" placeholder="Nombre"
+    liveChange=".onNameChange" />
 ```
 
 **Tabulación (Tab Size)**: Todos los archivos de **vista**, **controlador** y `manifest.json` deben estar indentados utilizando un **Tab Size de 4**.

@@ -166,7 +166,7 @@ Responder primero: **¿cuántos niveles de navegación tiene la pantalla?**
 5. **Mapear controles**
    - Traducir cada elemento visual a control UI5 (ver tabla de Controles).
    - Asignar IDs estables a controles clave.
-   - Formato obligatorio: **una línea por control visual** (excepción: `<mvc:View/>` se formatea con una propiedad por línea). **Tab Size: 4**.
+   - Formato obligatorio: **máximo 80 caracteres por línea**; si un control supera ese límite, sus propiedades se distribuyen en varias líneas aprovechando los 80 caracteres disponibles en cada fila (tantas propiedades como quepan sin rebasar el límite). Excepción: `<mvc:View/>` siempre usa una propiedad por línea. **Tab Size: 4**.
 6. **Definir fragmentos**
    - Aplicar el criterio de uso (dialogs → siempre Fragment; secciones repetidas → Fragment).
 7. **Bindings de vista**
@@ -220,15 +220,15 @@ Priorizar `sap.m.*` y `sap.f.*` según el estilo de app (Fiori):
 - Selección con escritura libre o lista cerrada grande (>20 ítems) → `ComboBox`
 - Selección con búsqueda en catálogo grande (>50 ítems o datos remotos) → `Input` con `valueHelpRequest` + dialog
 - Selector múltiple → `MultiComboBox` (lista cerrada) / `MultiInput` con tokens (valores libres)
-- Tabla responsive (móvil/escritorio, <500 filas) → `sap.m.Table`
-- Tabla de datos masivos (scroll virtual, columnas fijas, >500 filas) → `sap.ui.table.Table`
+- Tabla con máximo 10 columnas → `sap.m.Table`
+- Tabla con más de 10 columnas (scroll virtual, columnas fijas, agrupación avanzada) → `sap.ui.table.Table`
 - Botones → `Button`; icon-only → `Button` con `icon` y `tooltip` obligatorio; solo texto sin borde → `type="Transparent"`
 - Mensajes → `MessageStrip` (inline en vista) / `MessageBox` (modal bloqueante) / `MessagePopover` (lista de errores en footer de formulario)
 
 **Criterio de selección tabla**:
-- ¿La app debe funcionar en móvil? → `sap.m.Table` (responsive por defecto)
-- ¿Se manejan >500 filas o se necesita scroll virtual, columnas fijas o agrupación avanzada? → `sap.ui.table.Table`
-- En caso de duda, preferir `sap.m.Table` con `growing="true"` y `growingThreshold="50"`
+- ¿La tabla muestra un máximo de 10 columnas? → `sap.m.Table`
+- ¿La tabla muestra más de 10 columnas? → `sap.ui.table.Table`
+- En caso de duda, preferir `sap.m.Table` con `growing="true"` y `growingThreshold="50"` 
 
 **Criterio de selección campo de selección**:
 | Situación | Control |
