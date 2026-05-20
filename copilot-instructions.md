@@ -100,20 +100,20 @@ const sSection = sStatus === "initial" ? "first" : "second";
 
 **Herencia entre controladores**: Los controladores son objetos que permiten la herencia. Por esta razón, en los proyectos se debe usar un controlador base (llamado "padre") que contenga los métodos comunes a varios controladores. De esta forma, la misma función no se duplicará en diferentes controladores.
 
-Nota: Si dos funciones realizan la misma acción, tienen el mismo nombre y existen en dos controladores distintos, centralice esa lógica en una única función dentro de `App.controller` y haga que los controladores hijos la reutilicen. Esto evita duplicación y facilita el mantenimiento.
+Nota: Si dos funciones realizan la misma acción, tienen el mismo nombre y existen en dos controladores distintos, centralice esa lógica en una única función dentro de `BaseController` y haga que los controladores hijos la reutilicen. Esto evita duplicación y facilita el mantenimiento.
 
-Ejemplo de un controlador que hereda de App.controller:
+Ejemplo de un controlador que hereda de BaseController:
 ```
 sap.ui.define([
-  "projectname/controller/App.controller"
+  "projectname/controller/BaseController"
 ],
-function (AppController) {
+function (BaseController) {
   "use strict";
 
-  return AppController.extend("projectname.controller.Search", {
+  return BaseController.extend("projectname.controller.Search", {
 
     onInit: function () {
-      AppController.prototype.onInit.apply(this, arguments);
+      BaseController.prototype.onInit.apply(this, arguments);
     }
   });
 });

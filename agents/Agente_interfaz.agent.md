@@ -132,28 +132,28 @@ Responder primero: **¿cuántos niveles de navegación tiene la pantalla?**
 3. **Verificar/crear ficheros**
    - Si no existe la vista: crear `ViewName.view.xml`.
    - Si no existe el controlador: crear `ViewName.controller.js` con el skeleton adecuado:
-     - Si `webapp/controller/App.controller.js` **ya existe**: extender `App.controller`
+     - Si `webapp/controller/BaseController.js` **ya existe**: extender `BaseController`
        ```javascript
        sap.ui.define([
-         "<namespace>/controller/App.controller"
-       ], function(AppController) {
+         "<namespace>/controller/BaseController"
+       ], function(BaseController) {
          "use strict";
-         return AppController.extend("<namespace>.controller.<ViewName>", {
+         return BaseController.extend("<namespace>.controller.<ViewName>", {
            onInit: function() {
-             AppController.prototype.onInit.apply(this, arguments);
+             BaseController.prototype.onInit.apply(this, arguments);
            }
          });
        });
        ```
-       > **Nota sobre el proyecto de referencia `proceduresdefinitionui5`**: `App.controller.js` existe pero actualmente sólo tiene un `onInit` vacío — los controladores existentes extienden `sap/ui/core/mvc/Controller` directamente. Al crear un controlador nuevo, extender `App.controller` igualmente para que los helpers comunes que se añadan en el futuro sean heredados automáticamente. Añadir también los imports habituales del proyecto en el skeleton: `manageCAP` (`"../utils/manageCAP"`), `formatter` (`"../utils/formatter"`), `JSONModel` (`"sap/ui/model/json/JSONModel"`), `MessageToast`, `MessageBox`.
-     - Si `App.controller.js` **no existe aún**: extender `sap/ui/core/mvc/Controller` y anotar TODO
+       > **Nota sobre el proyecto de referencia `proceduresdefinitionui5`**: los controladores existentes extienden `sap/ui/core/mvc/Controller` directamente. Al crear un controlador nuevo, extender `BaseController` igualmente para que los helpers comunes que se añadan en el futuro sean heredados automáticamente. Añadir también los imports habituales del proyecto en el skeleton: `manageCAP` (`"../utils/manageCAP"`), `formatter` (`"../utils/formatter"`), `JSONModel` (`"sap/ui/model/json/JSONModel"`), `MessageToast`, `MessageBox`.
+     - Si `BaseController.js` **no existe aún**: extender `sap/ui/core/mvc/Controller` y anotar TODO
        ```javascript
        sap.ui.define([
          "sap/ui/core/mvc/Controller"
        ], function(Controller) {
          "use strict";
-         //TODO: extender App.controller en lugar de Controller tras ejecutar Agente_logica /
-         //TODO: extend App.controller instead of Controller after running Agente_logica
+         //TODO: extender BaseController en lugar de Controller tras ejecutar Agente_logica /
+         //TODO: extend BaseController instead of Controller after running Agente_logica
          return Controller.extend("<namespace>.controller.<ViewName>", {
            onInit: function() {}
          });
@@ -398,7 +398,7 @@ Eres un experto en SAPUI5/Fiori. Generas vistas XML limpias, accesibles y CSS ma
 ## Checklist rápido
 - [ ] Decisión arquitectónica documentada (archType=freestyle por defecto, FloorPlan, JS por defecto, versión UI5)
 - [ ] Vista creada/actualizada
-- [ ] Controlador creado/actualizado (skeleton, extendiendo App.controller si existe)
+- [ ] Controlador creado/actualizado (skeleton, extendiendo BaseController si existe)
 - [ ] Propiedades de estado gestionadas via `viewModel` JSON; no hardcodeadas en la vista
 - [ ] FilterBar usado para filtros de tabla (o alternativa justificada)
 - [ ] Tabla: `sap.m.Table` por defecto; `sap.ui.table.Table` solo si muchas columnas o >500 filas

@@ -60,7 +60,7 @@ Implementar la **lógica funcional** de la pantalla en el controlador SAPUI5, in
 
 ## Salidas (artefactos)
 - `webapp/controller/<ViewName>.controller.js` actualizado con lógica completa.
-- (Si no existe) `webapp/controller/App.controller.js` como controlador base
+- (Si no existe) `webapp/controller/BaseController.js` como controlador base
 - (Si no existe) `webapp/utils/formatter.js`
 - (Opcional) `webapp/utils/<ServiceHelper>.js` para acceso a datos reutilizable.
 - Resumen de endpoints/entidades consumidas y bindings usados.
@@ -69,7 +69,7 @@ Implementar la **lógica funcional** de la pantalla en el controlador SAPUI5, in
 ```json
 {
   "status": "success|warning|failed",
-  "changes": ["webapp/controller/X.controller.js", "webapp/controller/App.controller.js"],
+  "changes": ["webapp/controller/X.controller.js", "webapp/controller/BaseController.js"],
   "notes": ["Fuente: OData V4", "Supuesto: CSRF no requerido (V4)"],
   "todos": ["Verificar nombre exacto de entidad con el equipo backend"],
   "metrics": { "filesTouched": 2, "warnings": 1 }
@@ -133,14 +133,14 @@ manageCAP.loadData("/ProcedureSet", { "$expand": "steps" }, aFilters, t)
 ---
 
 ## Patrón BaseController (recomendado si ≥2 controladores)
-El proyecto usa `webapp/controller/App.controller.js` como controlador base. **No crear** un fichero `BaseController.js` independiente; centralizar los helpers en `App.controller` y extender desde él.
+Usar `webapp/controller/BaseController.js` como controlador padre. Los controladores hijos extienden `BaseController` en lugar de `sap/ui/core/mvc/Controller` directamente.
 
 ```javascript
-// webapp/controller/App.controller.js
+// webapp/controller/BaseController.js
 sap.ui.define(["sap/ui/core/mvc/Controller"],
   function(Controller) {
     "use strict";
-    return Controller.extend("<namespace>.controller.App", {
+    return Controller.extend("<namespace>.controller.BaseController", {
         getRouter: function() {
             return this.getOwnerComponent().getRouter();
         },
@@ -163,21 +163,21 @@ Extender desde un controlador hijo:
 
 ```javascript
 sap.ui.define([
-  "<namespace>/controller/App.controller"
+  "<namespace>/controller/BaseController"
 ],
-function (AppController) {
+function (BaseController) {
   "use strict";
-  return AppController.extend("<namespace>.controller.<ViewName>", {
+  return BaseController.extend("<namespace>.controller.<ViewName>", {
     onInit: function () {
-      AppController.prototype.onInit.apply(this, arguments);
+      BaseController.prototype.onInit.apply(this, arguments);
     }
   });
 });
 ```
 
-Si ya existe `App.controller.js`, **extenderlo** sin duplicar helpers.
+Si ya existe `BaseController.js`, **extenderlo** sin duplicar helpers.
 
-> **Estado en el proyecto de referencia `proceduresdefinitionui5`**: `App.controller.js` existe pero actualmente sólo contiene un `onInit` vacío. Los controladores del proyecto extienden `sap/ui/core/mvc/Controller` directamente por razones históricas. Al crear un nuevo controlador, extender `App.controller` de todas formas — cuando se enriquezca con los helpers anteriores, los controladores hijos los heredarán automáticamente sin cambios. El acceso al router en el proyecto se hace directamente con `sap.ui.core.UIComponent.getRouterFor(t)` en lugar del helper `getRouter()` de App.controller; ambos son equivalentes, pero mantener coherencia con el código existente del proyecto.
+> **Estado en el proyecto de referencia `proceduresdefinitionui5`**: los controladores extienden `sap/ui/core/mvc/Controller` directamente por razones históricas. Al crear un nuevo controlador, extender `BaseController` de todas formas — cuando se enriquezca con los helpers, los controladores hijos los heredarán automáticamente sin cambios. El acceso al router en el proyecto se hace con `sap.ui.core.UIComponent.getRouterFor(t)`; el helper `getRouter()` de `BaseController` es equivalente, pero mantener coherencia con el código existente del proyecto.
 
 ---
 
@@ -338,7 +338,7 @@ Todos los textos de mensajes deben usar i18n: `this.getText("MSG_SAVED")`.
 - Textos de mensajes usan i18n.
 - `onExit` implementado con el detach correspondiente a todo lo registrado en `onInit`.
 - Formatters en fichero independiente.
-- BaseController (App.controller.js) utilizado (si procede).
+- BaseController (BaseController.js) utilizado (si procede).
 
 ---
 
@@ -392,7 +392,7 @@ Eres un experto en SAPUI5. Implementas controladores mantenibles, con lifecycle 
 ## Checklist rápido
 - [ ] Controlador existente leído completo antes de modificar
 - [ ] `constants.js` consultado; constantes usadas en lugar de literales
-- [ ] App.controller.js creado/extendido (si ≥2 controladores)
+- [ ] BaseController.js creado/extendido (si ≥2 controladores)
 - [ ] Modelos definidos (fuente de datos + JSONModel registrado como `"VIEW_MODEL"` en el proyecto de referencia, `"view"` en proyectos nuevos)
 - [ ] Propiedades de estado (enabled, visible, busy) gestionadas vía `viewModel`, no hardcodeadas
 - [ ] viewModel coherente con el skeleton generado por Agente_interfaz
