@@ -153,8 +153,6 @@ sap.ui.define(["sap/ui/core/mvc/Controller"],
         getText: function(sKey, aArgs) {
             return this.getModel("i18n").getResourceBundle().getText(sKey, aArgs);
         }
-        //onNavBack: implementado por Agente_navegacion según el tipo de routing del proyecto /
-        //onNavBack: implemented by Agente_navegacion according to the project routing type
     });
 });
 ```

@@ -49,7 +49,6 @@ Integrar la nueva vista en el sistema de navegación de SAPUI5:
 
 ## Salidas (artefactos)
 - `webapp/manifest.json` modificado.
-- (Opcional) `webapp/controller/App.controller.js` actualizado con `onNavBack` (si no estaba implementado).
 - (Opcional) `webapp/controller/<ViewName>.controller.js` con helpers de navegación específicos de la vista.
 - **Output JSON estándar** para el orquestador:
 
@@ -69,7 +68,6 @@ Integrar la nueva vista en el sistema de navegación de SAPUI5:
 
 1. **Exploración previa (obligatoria)**
    - Leer `manifest.json` completo: detectar routing existente, rutas, targets y `routerClass` activo.
-   - Verificar si `webapp/controller/App.controller.js` existe y si ya contiene `onNavBack`.
    - Listar `webapp/controller/` para identificar qué controladores necesitan helpers de navegación.
 2. **Detectar tipo de navegación**
    - Revisar si el proyecto usa router (recomendado) o NavContainer.
@@ -78,15 +76,10 @@ Integrar la nueva vista en el sistema de navegación de SAPUI5:
      - `routerClass`, `viewType`, `viewPath`, `controlId`, `controlAggregation`, `async`
    - En `routes`: añadir patrón + target
    - En `targets`: mapear target a vista
-4. **`onNavBack` en App.controller** (si no está implementado aún)
-   - Verificar primero si `App.controller.js` ya tiene `onNavBack`. Si es así, **no regenerarlo**.
-   - Si no existe: escribir la implementación adecuada según el tipo de routing:
-     - **Router estándar** (`sap.m.routing.Router`): usar `sap.ui.core.routing.History`
-     - **FlexibleColumnLayout** (`sap.f.routing.Router`): gestionar el estado de columna en lugar de `History`
-   - Escribir siempre en `App.controller.js`, nunca en el controlador hijo.
-5. **Helpers de navegación en controlador hijo** (si la vista navega a otras)
+4. **Helpers de navegación en controlador hijo** (si la vista navega a otras)
    - Añadir `onNavTo<Destino>()` o `_navigateTo<Destino>()` según aplique.
-6. **Parámetros de ruta**
+   - Usar siempre `this.getRouter().navTo("<RouteName>", { param: value })`. **Nunca usar `window.history`**.
+5. **Parámetros de ruta**
    - Definir cómo se pasan (path params vs query params).
    - Documentar parámetros requeridos y opcionales.
 
@@ -157,6 +150,5 @@ Eres un experto en routing de SAPUI5. Modificas manifest.json con precisión y m
 - [ ] Route añadida o creada
 - [ ] Target añadido o creado
 - [ ] Config routing coherente con el resto del proyecto
-- [ ] `onNavBack` en App.controller.js verificado (existente o implementado según tipo de routing)
 - [ ] Helpers de navegación de vista generados (`onNavTo<Destino>`) si la vista navega a otras
 - [ ] Output JSON producido para el orquestador

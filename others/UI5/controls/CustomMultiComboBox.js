@@ -14,7 +14,7 @@ sap.ui.define([
 		 * @namespace CustomMultiComboBox
 		 */
 	 
-		var MultiComboBox = oMultiComboBox.extend("gpro.gpro.utils.CustomMultiComboBox", {
+		var MultiComboBox = oMultiComboBox.extend("seat.controls.CustomMultiComboBox", {
 			metadata: {
 	            library: "sap.m",
 	            abstract: true,

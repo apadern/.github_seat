@@ -216,14 +216,14 @@ Priorizar `sap.m.*` y `sap.f.*` según el estilo de app (Fiori):
 - Campo de texto libre → `Input`
 - Campo numérico → `Input` con `type="Number"`
 - Fecha → `DatePicker` (fecha única) / `DateRangeSelection` (rango de fechas) / `DateTimePicker` (fecha + hora) / `TimePicker` (solo hora)
-- Selección de lista cerrada (≤20 ítems) → `Select`
-- Selección con escritura libre o lista cerrada grande (>20 ítems) → `ComboBox`
+- Selección de lista cerrada → `ComboBox`
+- Selección con escritura libre o lista abierta → `ComboBox`
 - Selección con búsqueda en catálogo grande (>50 ítems o datos remotos) → `Input` con `valueHelpRequest` + dialog
-- Selector múltiple → `MultiComboBox` (lista cerrada) / `MultiInput` con tokens (valores libres)
+- Selector múltiple → `MultiComboBox` (lista cerrada, ≤200 ítems) / `CustomMultiComboBox` (lista cerrada, >200 ítems; usar control en `.github/others/UI5/controls/CustomMultiComboBox`) / `MultiInput` con tokens (valores libres)
 - Tabla con máximo 10 columnas → `sap.m.Table`
 - Tabla con más de 10 columnas (scroll virtual, columnas fijas, agrupación avanzada) → `sap.ui.table.Table`
 - Botones → `Button`; icon-only → `Button` con `icon` y `tooltip` obligatorio; solo texto sin borde → `type="Transparent"`
-- Mensajes → `MessageStrip` (inline en vista) / `MessageBox` (modal bloqueante) / `MessagePopover` (lista de errores en footer de formulario)
+- Mensajes → `MessageToast` (notificación efímera de éxito, no bloqueante) / `MessageStrip` (inline en vista) / `MessageBox` (modal bloqueante: `.error()` para errores bloqueantes, `.warning()` para avisos importantes que el usuario debe confirmar, `.confirm()` para confirmaciones previas a acciones del usuario como creación, modificación o eliminación) / `MessagePopover` (lista de errores en footer de formulario)
 
 **Criterio de selección tabla**:
 - ¿La tabla muestra un máximo de 10 columnas? → `sap.m.Table`
@@ -233,10 +233,11 @@ Priorizar `sap.m.*` y `sap.f.*` según el estilo de app (Fiori):
 **Criterio de selección campo de selección**:
 | Situación | Control |
 |---|---|
-| Lista cerrada, ≤20 ítems, sin escritura libre | `Select` |
-| Lista cerrada, >20 ítems o datos remotos | `ComboBox` o `Input` + valueHelp |
+| Lista cerrada (cualquier número de ítems) | `ComboBox` |
+| Lista cerrada, datos remotos o gran volumen | `ComboBox` o `Input` + valueHelp |
 | El usuario puede introducir un valor no listado | `ComboBox` |
-| Selección múltiple, lista cerrada | `MultiComboBox` |
+| Selección múltiple, lista cerrada (≤200 ítems) | `MultiComboBox` |
+| Selección múltiple, lista cerrada muy amplia (>200 ítems) | `CustomMultiComboBox` (`.github/others/UI5/controls/CustomMultiComboBox`) |
 | Búsqueda compleja en catálogo (filtros avanzados) | `Input` + `valueHelpRequest` con dialog Fragment |
 
 **FilterBar para filtros de tabla**:
@@ -333,9 +334,12 @@ Elegir el patrón según el alcance del error:
 
 | Situación | Patrón |
 |---|---|
+| Finalización correcta de una operación (guardar, enviar, etc.) | `MessageToast.show()` |
 | Error en un campo concreto (p. ej. formato inválido) | `valueState="Error"` + `valueStateText` en el control |
 | Aviso o información contextual en una sección de la vista | `MessageStrip` inline |
 | Error bloqueante que requiere confirmación del usuario | `MessageBox.error()` |
+| Aviso importante que el usuario debe confirmar antes de continuar | `MessageBox.warning()` |
+| Confirmación previa a una acción relevante (crear, modificar, eliminar) | `MessageBox.confirm()` |
 | Lista de errores de validación de un formulario completo | `MessagePopover` en la barra inferior (footer) |
 
 ### Dialog vs navegación a nueva pantalla

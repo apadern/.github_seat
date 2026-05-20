@@ -250,7 +250,7 @@ Verificar con `read_file` sobre `manifest.json` y los controladores generados:
 2. La route añadida tiene un patrón único que no colisiona con rutas existentes.
 3. El target referenciado en la route existe en la sección `targets`.
 4. Si routing ya existía, las rutas anteriores se conservan intactas.
-5. Si se generaron helpers de navegación (`navTo`, `onNavBack`), los nombres de route usados existen en el manifest.
+5. Si se generaron helpers de navegación (`navTo`), los nombres de route usados existen en el manifest.
 
 **Si falla Gate B:** marcar `agents.navegacion.status = "failed"`, registrar los problemas en `agents.navegacion.notes`, **no invocar Agente_logica**.
 
