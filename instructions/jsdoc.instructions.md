@@ -52,12 +52,11 @@ Ejemplo:
       /**
        * @memberof App
        * @method validacionData
-       * @public
        */
       ```
 
 - Cada una de las funciones del controlador se comentará mediante anotaciones. Los comentarios solo se generarán antes de la declaración de la función; no se generarán automáticamente en medio de la misma.
-Siempre se añadirán las etiquetas `@description`, `@memberof`, `@method`, `@author` y `@public`/`@private`. Si corresponde, también se añadirán las etiquetas `@async`, `@param`, `@returns` y `@throws`. 
+Siempre se añadirán las etiquetas `@description`, `@memberof`, `@method`, `@author`. Si corresponde, también se añadirán las etiquetas `@async`, `@param`, `@returns` y `@throws`. 
   - Las etiquetas JSDoc bilingües (como `@description`, `@param`, `@returns`) que superen ~80 caracteres se dividirán en varias líneas usando el mismo patrón que los comentarios inline: primero las líneas en español y luego las líneas en inglés, usando ` /` al final de la última línea española como separador. Ejemplo:
     ```js
     /**
@@ -83,12 +82,11 @@ Ejemplo de una función con parámetros de entrada y un valor de retorno:
     * @param {Object} oTable - Tabla de origen / Source table
     * @author NTTData
     * @returns {Boolean}
-    * @public
     */
   ```
 
 - Las **variables y constantes** globales también deben documentarse mediante anotaciones JSDoc, siguiendo el mismo criterio que las funciones. Los comentarios se generarán antes de la declaración.
-  Siempre se añadirán las etiquetas `@description`, `@memberof`, `@type` y `@author`. Para constantes se añadirá además `@constant`. Si corresponde, también `@public`/`@private`.
+  Siempre se añadirán las etiquetas `@description`, `@memberof`, `@type` y `@author`. Para constantes se añadirá además `@constant`.
   - Si la variable o constante ya tiene anotaciones JSDoc, se debe **fusionar** con las directrices: conservar las etiquetas correctas del bloque existente y completar o corregir las que falten o sean incorrectas. **No añadir un nuevo bloque encima del existente** — el resultado debe ser un único bloque JSDoc por declaración.
   - Si la variable o constante está comentada no se deben añadir anotaciones jsdoc ya que se trata de una lógica en desuso.
 
@@ -99,7 +97,6 @@ Ejemplo de una constante:
     * @memberof App
     * @constant {number}
     * @author NTTData
-    * @public
     */
   const MAX_TIMEOUT = 30000;
   ```
@@ -111,7 +108,6 @@ Ejemplo de una variable de módulo:
     * @memberof App
     * @type {sap.ui.model.json.JSONModel}
     * @author NTTData
-    * @private
     */
   var _oDataModel;
   ```

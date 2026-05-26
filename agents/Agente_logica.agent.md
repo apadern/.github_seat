@@ -295,14 +295,34 @@ Todos los textos de mensajes deben usar i18n: `this.getText("MSG_SAVED")`.
    - **Patrón del proyecto de referencia**: se usa `sap.ui.core.BusyIndicator.show(0)` y `sap.ui.core.BusyIndicator.hide()` como indicador global de carga (bloquea toda la UI). Usarlo para flujos de autenticación/primera carga de datos. Siempre llamar a `hide()` tanto en el callback de éxito como en el de error.
    - Mensajes de éxito/error según tabla de mensajería.
    - Rollback de cambios si el usuario cancela (restaurar viewModel a estado previo).
-   - **Gestión de diálogos**: guardar la referencia del dialog en `this._oXxxDialog`. Comprobar si ya fue instanciado antes de volver a crear (`if (!this._oXxxDialog) { Fragment.load(...).then(...) }`). Destruirlo en `onExit` (`this._oXxxDialog.destroy()`).
+   - **Gestión de diálogos**: guardar la referencia del dialog en `t._oXxxDialog` (usando `const that = this` como alias). El patrón del proyecto es:
+     ```js
+     if (!t._oXxxDialog) {
+         t._oXxxDialog = sap.ui.xmlfragment("gprocfui5.fragments.nombreFragment", t);
+         // Modelos estáticos: asignar solo una vez dentro del if
+         t._oXxxDialog.setModel(t.getView().getModel("i18n"), "i18n");
+         t._oXxxDialog.setModel(t.getOwnerComponent().getModel("GPRO_ODATA_MODEL"), "GPRO_ODATA_MODEL");
+     }
+     // Modelos de datos: asignar siempre (fuera del if) para refrescar en cada apertura
+     t._oXxxDialog.setModel(new JSONModel(oData), "DIALOG_MODEL");
+     t._oXxxDialog.open();
+     ```
+     En el handler de cierre, destruir y poner a `undefined`:
+     ```js
+     if (t._oXxxDialog) {
+         t._oXxxDialog.close();
+         t._oXxxDialog.destroy();
+         t._oXxxDialog = undefined;
+     }
+     ```
+     No se destruye en `onExit` ya que el propio handler de cierre se encarga.
 9. **Robustez**
    - Parser de errores de respuesta: `responseText`, `error.message`, mensajes OData.
    - Evitar duplicidad de requests (deshabilitar botón mientras hay request activo).
    - Control de concurrencia: verificar si el componente sigue montado antes de actualizar modelo en callbacks.
 10. **Lifecycle `onExit`**
     - Detach de todos los handlers registrados en `onInit` y `_handleRouteMatched`.
-    - Destruir objetos que no se gestionen solos (timers, subscripciones EventBus, dialogs cargados con `Fragment.load`).
+    - Destruir objetos que no se gestionen solos (timers, subscripciones EventBus). Los dialogs se destruyen en su propio handler de cierre (ver sección UX), por lo que en `onExit` solo es necesario destruirlos si quedaran abiertos sin cerrarse explícitamente.
 11. **Testabilidad**
     - Separar acceso a datos en funciones privadas con nombre descriptivo.
     - Evitar lógica en callbacks anidados; usar `async/await` si el stack lo permite.
@@ -318,7 +338,7 @@ Todos los textos de mensajes deben usar i18n: `this.getText("MSG_SAVED")`.
 ---
 
 ## Rendimiento
-- **Lazy loading de fragments**: llamar `Fragment.load()` solo al abrir el dialog, **nunca en `onInit`**.
+- **Lazy loading de fragments**: instanciar el fragment con `sap.ui.xmlfragment()` solo al abrir el dialog (dentro del `if (!t._oXxxDialog)`), **nunca en `onInit`**. Asignar los modelos estáticos una única vez en ese mismo bloque; los modelos de datos se actualizan en cada apertura fuera del `if`.
 - **Debounce en `liveChange`**: usar `setTimeout`/`clearTimeout` para evitar requests en cada keystroke.
 - **`$select` y `$expand`**: solicitar solo las propiedades necesarias en cada request.
 - **`growing: true`** en tablas largas (paginación) con `growingThreshold` ajustado.

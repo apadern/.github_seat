@@ -161,13 +161,24 @@ Ejemplo:
 }
 ```
 
-- SAPUI5 proporciona varias clases CSS predefinidas para añadir márgenes o relleno a un elemento visual.
-Ejemplo:
+- **Prioridad de clases estándar SAPUI5 para `margin` y `padding`**: antes de declarar cualquier regla CSS personalizada que afecte a márgenes o rellenos, compruebe si alguna clase utilitaria de SAPUI5 ya cubre la necesidad. Estas clases están probadas, son theme-aware y evitan la proliferación de CSS propio. Solo cuando ninguna clase estándar sea suficiente se definirá una regla en `style.css`.
+
+  Clases de margen disponibles: `sapUiNoMargin`, `sapUiTinyMargin`, `sapUiSmallMargin`, `sapUiMediumMargin`, `sapUiLargeMargin`, `sapUiSmallMarginTop`, `sapUiSmallMarginBottom`, `sapUiSmallMarginBeginEnd`, `sapUiMediumMarginBeginEnd`, `sapUiMediumMarginTopBottom`.
+
+  Clases de padding disponibles: `sapUiNoContentPadding`, `sapUiContentPadding`, `sapUiResponsiveContentPadding`, `sapUiSmallPadding`, `sapUiMediumPadding`, `sapUiLargePadding`.
+
+Ejemplo correcto (usa clases estándar, no CSS propio):
 ```
 <IconTabBar class="sapUiResponsiveContentPadding sapUiMediumMarginBeginEnd">
 ```
+Ejemplo incorrecto (innecesario si una clase estándar lo cubre):
+```css
+.pdef-container { margin: 1rem 2rem; padding: 1rem; }
+```
 
-- Utilice siempre clases (y la menor cantidad posible), nunca identificadores, para hacer referencia a un elemento de la vista. Considere también reutilizar clases para elementos a los que se les aplique el mismo estilo visual.
+- Utilice siempre clases (y la menor cantidad posible), nunca identificadores, para hacer referencia a un elemento de la vista.
+
+- **Reutilización de clases custom existentes**: antes de crear una nueva clase en `style.css`, revise las clases personalizadas ya definidas en ese fichero. Si una clase existente proporciona exactamente el mismo estilo visual que se necesita, reutilícela directamente en la vista; no duplique reglas CSS. Si dos clases distintas acaban aplicando las mismas propiedades, unifíquelas en una sola. Este principio va más allá de no repetir código: implica hacer una búsqueda activa antes de escribir CSS nuevo.
 
 - Intente utilizar un sistema de nombres común para las clases referenciadas, donde la nomenclatura se refiera a la función del elemento, no a su apariencia.
 
@@ -179,7 +190,13 @@ Ejemplo:
 
 - Intente organizar el código CSS si el proyecto es muy grande, dividiéndolo en secciones comentadas.
 
-- En cuanto a las diferencias visuales entre distintos dispositivos, utilice consultas de medios (@mediaqueries), evitando los anchos fijos siempre que sea posible.
+- **Diseño responsive, no pixel-perfect**: el objetivo es que la interfaz se adapte a distintos tamaños de pantalla de forma natural, no reproducir un diseño exacto a píxel. Las vistas deben comportarse correctamente en dispositivos móviles, tablets y escritorio sin intervención manual por breakpoint.
+
+  Reglas concretas:
+  - **Prohibido usar anchos fijos en píxeles** (`width: 320px`, `width: 600px`, etc.) en clases CSS personalizadas ni en propiedades `width` de controles XML. Use en su lugar: porcentajes (`width: 100%`), `auto`, unidades relativas (`rem`, `em`), o propiedades de layout SAPUI5 (`width="auto"`, `layoutData`).
+  - Prefiera los controles de layout responsivos de SAPUI5: `sap.ui.layout.Grid`, `sap.m.FlexBox`, `sap.m.HBox` con `alignItems` y `justifyContent`, `sap.ui.layout.form.ResponsiveGridLayout`.
+  - Utilice `@media` queries solo para ajustes puntuales que los controles SAPUI5 no resuelvan por sí solos; en ese caso, base los breakpoints en rangos de viewport (`max-width: 600px`) en lugar de tamaños de dispositivo concretos.
+  - Evite `height` fijo en contenedores; use `min-height` si es necesario garantizar un tamaño mínimo.
 
 - Declare variables al hacer referencia a códigos de color.
 Ejemplo:
