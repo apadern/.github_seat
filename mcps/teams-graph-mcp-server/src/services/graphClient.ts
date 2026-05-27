@@ -7,9 +7,11 @@ import type {
   Site,
   Drive,
   DriveItem,
+  GraphUser,
   GraphListResponse,
   GraphErrorResponse,
 } from "../types.js";
+import { ETagConflictError } from "../types.js";
 
 export class GraphClient implements IGraphClient {
   private auth: AuthProvider;
@@ -139,17 +141,33 @@ export class GraphClient implements IGraphClient {
     parentId: string,
     fileName: string,
     content: string | Buffer,
-    contentType = "application/octet-stream"
+    contentType = "application/octet-stream",
+    ifMatch?: string
   ): Promise<DriveItem> {
     const token = await this.auth.getAccessToken();
     const path = `/sites/${enc(siteId)}/drive/items/${enc(parentId)}:/${encodeURIComponent(fileName)}:/content`;
     // Convertir Buffer a Uint8Array para compatibilidad con fetch / Convert Buffer to Uint8Array for fetch compatibility
     const body: BodyInit = typeof content === "string" ? content : new Uint8Array(content);
+    const headers: Record<string, string> = {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": contentType,
+    };
+    // Añadir cabecera If-Match para concurrencia optimista si se proporciona el ETag /
+    // Add If-Match header for optimistic concurrency if ETag is provided
+    if (ifMatch) headers["If-Match"] = ifMatch;
     const response = await fetch(`${GRAPH_BASE_URL}${path}`, {
       method: "PUT",
-      headers: { Authorization: `Bearer ${token}`, "Content-Type": contentType },
+      headers,
       body,
     });
+    // 412 Precondition Failed — el fichero fue modificado por otra persona /
+    // 412 Precondition Failed — the file was modified by someone else
+    if (response.status === 412) {
+      throw new ETagConflictError(
+        `El fichero '${fileName}' fue modificado en SharePoint desde la descarga (eTag no coincide). ` +
+        `Descarga la versión actual, revisa los cambios ajenos e intenta de nuevo.`
+      );
+    }
     if (!response.ok) throw new Error(`Upload failed ${response.status}: ${await response.text()}`);
     return response.json() as Promise<DriveItem>;
   }
@@ -194,6 +212,12 @@ export class GraphClient implements IGraphClient {
       "GET",
       `/sites/${enc(siteId)}/drive/root:/${encodedPath}`
     );
+  }
+
+  // Devuelve el perfil del usuario autenticado mediante el endpoint /me /
+  // Returns the authenticated user's profile via the /me endpoint
+  getCurrentUser(): Promise<GraphUser> {
+    return this.call("GET", "/me?$select=id,displayName,mail,userPrincipalName");
   }
 }
 

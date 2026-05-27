@@ -3,6 +3,7 @@ import { z } from "zod";
 import { readFileSync } from "fs";
 import { extname } from "path";
 import type { IGraphClient, DriveItem, Drive, Site } from "../types.js";
+import { ETagConflictError } from "../types.js";
 import { DEFAULT_SHAREPOINT_HOSTNAME, DEFAULT_SHAREPOINT_SITE_PATH } from "../constants.js";
 import { extractDocxText } from "../utils/docxExtractor.js";
 
@@ -277,10 +278,14 @@ export function registerSharepointTools(server: McpServer, graph: IGraphClient):
         parent_id: z.string().describe("ID de la carpeta destino en SharePoint"),
         local_path: z.string().describe("Ruta absoluta al fichero local a subir"),
         file_name: z.string().optional().describe("Nombre destino en SharePoint (por defecto: nombre del fichero local)"),
+        if_match: z.string().optional().describe(
+          "ETag del ítem capturado al descargarlo (p.ej. '{abc123},1'). " +
+          "Si se proporciona, la subida falla con CONFLICT_DETECTED si el fichero fue modificado por otra persona desde la descarga."
+        ),
       },
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true },
     },
-    async ({ site_id, parent_id, local_path, file_name }) => {
+    async ({ site_id, parent_id, local_path, file_name, if_match }) => {
       // Leer el fichero local como buffer binario / Read local file as binary buffer
       let buffer: Buffer;
       try {
@@ -292,13 +297,35 @@ export function registerSharepointTools(server: McpServer, graph: IGraphClient):
       const destName = file_name ?? local_path.split("/").pop() ?? "file";
       const mimeType = getMimeType(destName);
 
-      const item = await graph.uploadSiteFile(site_id, parent_id, destName, buffer, mimeType);
-      return {
-        content: [{
-          type: "text",
-          text: `✅ **${item.name}** subido correctamente desde \`${local_path}\`.\n- **ID**: \`${item.id}\`\n- **Tamaño**: ${formatSize(item.size)}\n- **Tipo**: ${mimeType}\n- **URL**: ${item.webUrl}`,
-        }],
-      };
+      try {
+        const item = await graph.uploadSiteFile(site_id, parent_id, destName, buffer, mimeType, if_match);
+        return {
+          content: [{
+            type: "text",
+            text: `✅ **${item.name}** subido correctamente desde \`${local_path}\`.\n- **ID**: \`${item.id}\`\n- **Tamaño**: ${formatSize(item.size)}\n- **Tipo**: ${mimeType}\n- **URL**: ${item.webUrl}`,
+          }],
+        };
+      } catch (err) {
+        // Detectar conflicto de concurrencia optimista (412) / Detect optimistic concurrency conflict (412)
+        if (err instanceof ETagConflictError) {
+          return {
+            content: [{
+              type: "text",
+              text: [
+                "⚠️ CONFLICT_DETECTED",
+                `El fichero **${destName}** fue modificado en SharePoint por otra persona después de que lo descargaste.`,
+                "El eTag del fichero ya no coincide con el registrado al inicio de la edición.",
+                "",
+                "**Pasos del agente:**",
+                "1. Descarga de nuevo el fichero actualizado desde SharePoint.",
+                "2. Compara los cambios ajenos (nueva versión) con los cambios propios (preview del agente).",
+                "3. Fusiona automáticamente si los cambios son en secciones distintas, o presenta conflictos al usuario si se solapan.",
+              ].join("\n"),
+            }],
+          };
+        }
+        throw err;
+      }
     }
   );
 

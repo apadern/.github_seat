@@ -1,6 +1,7 @@
 ---
 name: generar_log_de_cambios
-description: "Genera un log de cambios para un proyecto UI5, listando los cambios por fichero y, cuando aplique, por controlador, vista, fragmento o módulo, con una razón breve y concisa por cada modificación. Presenta una plantilla con todos los parámetros de una sola vez para que el usuario los rellene en un único mensaje."
+description: "Genera un log de cambios para un proyecto UI5 e inserta el resultado en el documento Word almacenado en SharePoint/Teams. Si el proyecto no tiene log de cambios en Teams, descarga la plantilla SEAT LC desde la carpeta de Plantillas corporativa. Presenta una plantilla con todos los parámetros de una sola vez para que el usuario los rellene en un único mensaje."
+agent: Agente_actualizacion_doc_SEAT
 argument-hint: "Escribe 'iniciar' para ver la plantilla de parámetros"
 ---
 
@@ -15,14 +16,13 @@ En ambos casos, no hagas preguntas por separado: muestra el bloque correspondien
 
 Una vez recibida la plantilla rellena, ejecuta el análisis directamente sin hacer más preguntas, salvo las dos excepciones indicadas más abajo.
 
-**Excepciones que sí requieren una pregunta adicional tras recibir la plantilla:**
-1. Si el destino es `.docx` y `git config user.name` devuelve un alias técnico (un único token sin espacios), preguntar el nombre completo del autor.
-2. Si algún campo obligatorio (`*`) viene vacío o con el texto de ejemplo sin modificar, solicitar únicamente ese campo.
+**Excepción que sí requiere una pregunta adicional tras recibir la plantilla:**
+1. Si algún campo obligatorio (`*`) viene vacío o con el texto de ejemplo sin modificar, solicitar únicamente ese campo.
 
-Cuando el destino sea `.docx`, trabaja siempre en **modo seguro**:
-- no sobrescribas el fichero original en el primer intento;
-- genera primero una copia de revisión;
-- valida esa copia antes de proponer sustituir el original;
+Trabaja siempre en **modo seguro**:
+- descarga el fichero de SharePoint a una ruta temporal local;
+- crea una copia `_backup` del original descargado antes de modificarlo;
+- valida la copia modificada antes de subirla de vuelta a SharePoint;
 - no reutilices copias temporales de ejecuciones anteriores sin comprobar que corresponden al fichero origen actual.
 
 ---
@@ -38,7 +38,7 @@ Lee los campos a continuación, después **copia el bloque al final y devuélvel
 ---
 
 **Proyecto** `*`  
-Nombre de la carpeta raíz del proyecto dentro del workspace.  
+Nombre de la carpeta raíz del proyecto dentro del workspace local.  
 _Ejemplo: `seatnoconformidadescfui5`, `procedurescfui5`, `hrconfigui5`_
 
 ---
@@ -56,69 +56,67 @@ _Ejemplo: `prod`, `main`, `develop`, `master`_
 
 ---
 
-**Destino** `*`  
-Indica dónde quieres ver el resultado:  
-· `1` — **Mostrar en el chat**: el log se genera dentro de un bloque de código markdown en esta misma conversación, listo para seleccionar y copiar íntegramente.  
-· `2` — **Insertar en fichero**: el log se inserta dentro de un fichero del proyecto. Soporta `.docx` (Word con Track Changes), `.md` y `.txt`.
-
----
-
-**Fichero destino** _(solo si Destino = 2)_  
-Nombre del fichero donde insertar el log. Se buscará en este orden:  
-1. Carpeta raíz del proyecto (mismo nivel que `webapp/`).  
-2. Raíz del workspace (carpeta padre del proyecto).  
-Si hay varias coincidencias, se listarán todas y se pedirá al usuario que confirme cuál usar.  
-· Si es `.docx`: el contenido se inserta con marcas de revisión (Track Changes), dentro de la sección `CAMBIOS`.  
-· Si es `.md` o `.txt`: el contenido se añade en la sección indicada con el mismo estilo de headings del resto del fichero.  
-_Ejemplo: `CHANGES_LOG.docx`, `CHANGELOG.md`, `notas.txt`_
-
----
-
-**Título de sección** _(solo si Destino = 2)_  
+**Título de sección** `*`  
 Título exacto del subapartado que se creará (o se reutilizará) dentro del fichero para insertar el log.  
 Si ya existe una sección con ese título o con el mismo identificador de ticket, el contenido se añade dentro sin duplicarla.  
 _Ejemplo: `BTPHR-1059 Corrección validación de firma`, `Sprint 14 — Semana 2`_
 
 ---
 
-**Autor** _(solo si Destino = 2 con fichero `.docx` y tu nombre en git es un alias)_  
-Si tu nombre en git es un alias técnico (un único token sin espacios, como `jsmith` o `dev01`), escribe aquí tu nombre completo. Se usará como autor en las marcas de revisión del documento.  
-Si tu nombre en git ya es legible (dos palabras o más), deja este campo en blanco.  
-_Ejemplo: `Juan García López`_
-
----
-
 📋 **Copia este bloque, rellénalo y responde:**
 
 ```
-Proyecto *         : 
-Origen *           : 
-Rama base          : 
-Destino *          : 
-Fichero destino    : 
-Título de sección  : 
-Autor              : 
+Proyecto *            : 
+Origen *              : 
+Rama base             : 
+Título de sección *   : 
 ```
+
+---
+
+## Plantilla corporativa LC — descubrimiento y registro
+
+Antes de cualquier ejecución, lee `.github/sharepoint_refs.md` con `read_file` para obtener la configuración de SharePoint.
+
+Si la sección `## Carpeta: Plantillas SEAT LC` del fichero contiene `_(pendiente — …)_` en el campo **Drive Item ID carpeta**, ejecuta el siguiente procedimiento **una sola vez**:
+
+1. Usando `mcp_teams-graph_sharepoint_list_items` sobre la carpeta `General` (`01DSNDNNIXK72ETDN5RBF3H5366EV3MTJW`), localiza la subcarpeta `2. Materiales Adicionales`.
+2. Dentro de ella, localiza la subcarpeta `Plantillas`.
+3. Registra el **Drive Item ID** de esa carpeta en `.github/sharepoint_refs.md` sustituyendo el valor `_(pendiente — el agente lo registra en la primera ejecución)_` por el ID real.
+4. Opcionalmente, si puedes obtener el **Item ID** del fichero `SEAT - LC PLANTILLA v1.0.docx` dentro de esa carpeta, regístralo también en el campo **Item ID plantilla**.
+5. Confirma al usuario: _"Carpeta de Plantillas registrada en `.github/sharepoint_refs.md`"_.
+
+Si el ID ya está registrado (no contiene `_(pendiente…)_`), omite este paso y usa directamente el ID almacenado.
+
+### Cuándo usar la plantilla
+
+Si el proyecto indicado por el usuario **no tiene un fichero LC en SharePoint**, descarga la plantilla desde la carpeta de Plantillas y úsala como base para crear un nuevo log de cambios. Tras modificarla localmente, súbela a la carpeta del proyecto en SharePoint con el nombre `SEAT - LC <NOMBRE_PROYECTO> v1.0.docx`.
+
+> **Verificación estructural obligatoria al usar la plantilla**: antes de insertar contenido, comprobar en `word/document.xml` estos cuatro puntos:
+> 1. **Estructura del campo TOC**: los tres marcadores `fldChar` (`begin`, `instrText`, `separate`) deben estar dentro del **mismo párrafo** (`<w:p>`). Si aparecen en tres párrafos separados, consolidarlos en uno solo — de lo contrario, la primera entrada del índice no mostrará los puntos guía (`......`) aunque el estilo `TDC1` los defina correctamente.
+> 2. **Atributo `dirty` en el TOC**: verificar que el `<w:fldChar w:fldCharType="begin"/>` del TOC **no tiene** el atributo `w:dirty="true"`. Si lo tiene, eliminarlo. De lo contrario, Word mostrará el diálogo «¿Actualizar los campos?» cada vez que el documento se abra.
+> 3. **Altura uniforme en la tabla de versiones**: al rellenar la tabla `TablaSEAT2` de gestión de versiones, aplicar `<w:spacing w:before="0" w:after="0"/>` al párrafo de **todas** las celdas de datos (filas 1+), incluyendo las que quedan vacías. Sin este atributo explícito, las filas vacías heredan el espaciado del estilo `paragraph` (100/100 twips) y aparecen visualmente más altas que las filas rellenas.
+> 4. **Archivos de media sin Content-Type registrado**: `[Content_Types].xml` solo registra por defecto las extensiones `png`, `rels` y `xml`. Si al construir el ZIP de salida se incluyen ficheros de `word/media/` con extensión `.emf` o `.wmf` (habituales en documentos creados con versiones antiguas de Word), Word lanzará el error «contenido no legible» al abrir el resultado. Antes de subir, verificar que ningún fichero del ZIP tiene una extensión sin Content-Type asociado; eliminar los que no estén registrados si no son referenciados.
 
 ---
 
 ## Directrices de inserción en `.docx` (siempre que el destino sea Word)
 
 ### Ubicación dentro del documento
-El contenido **siempre** se inserta dentro de la sección `CAMBIOS` (`Heading1`) como un nuevo subapartado. Nunca fuera de ella.
+El contenido **siempre** se inserta dentro de la sección `CAMBIOS` (`Ttulo1`) como un nuevo subapartado. Nunca fuera de ella.
 
-El nuevo subapartado se inserta al **final** de la sección `CAMBIOS`: justo antes del siguiente `Heading1` que la suceda o, si no hay ninguno, justo antes de `w:sectPr`.
+El nuevo subapartado se inserta al **final** de la sección `CAMBIOS`: justo antes del siguiente `Ttulo1` que la suceda o, si no hay ninguno, justo antes de `w:sectPr`.
 
-Antes de insertar un nuevo `Heading2`, comprobar en este orden:
+Antes de insertar un nuevo `Ttulo2`, comprobar en este orden:
 - coincidencia exacta del título completo;
 - coincidencia por identificador de ticket (por ejemplo `BTPHR-1059`);
 - coincidencia normalizada ignorando mayúsculas/minúsculas, dobles espacios y signos menores.
 
-> **Crítico — cómo buscar**: la búsqueda del identificador de ticket **debe hacerse exclusivamente sobre el texto visible extraído de los `<w:t>` de párrafos con `<w:pStyle w:val="Heading2"/>`**, nunca sobre el XML en bruto del documento. Buscar en el XML completo produce falsas coincidencias con atributos como `w14:paraId`, `w:rsidR`, etc., que pueden contener los mismos dígitos que el número de ticket.
+> **Crítico — cómo buscar**: la búsqueda del identificador de ticket **debe hacerse exclusivamente sobre el texto visible extraído de los `<w:t>` de párrafos con `<w:pStyle w:val="Ttulo2"/>`**, nunca sobre el XML en bruto del documento. Buscar en el XML completo produce falsas coincidencias con atributos como `w14:paraId`, `w:rsidR`, etc., que pueden contener los mismos dígitos que el número de ticket.
 
 Ejemplo correcto en Python:
 ```python
-for m in re.finditer(r'<w:pStyle w:val="Heading2"/>', content):
+for m in re.finditer(r'<w:pStyle w:val="Ttulo2"/>', content):
     p_start = content.rfind('<w:p ', 0, m.start())
     p_end   = content.find('</w:p>', p_start) + 6
     block   = content[p_start:p_end]
@@ -127,33 +125,35 @@ for m in re.finditer(r'<w:pStyle w:val="Heading2"/>', content):
         # sección encontrada → reutilizar
 ```
 
-Si ya existe una coincidencia por ticket, no crear un nuevo `Heading2`: reutilizar la sección existente.
+Si ya existe una coincidencia por ticket, no crear un nuevo `Ttulo2`: reutilizar la sección existente.
 
-> **Importante**: si el `Heading2` candidato existe pero su texto está íntegramente dentro de elementos `w:del` (es decir, es una eliminación pendiente de aceptar), considerarlo como **no existente** y crear un nuevo `Heading2` con el título completo.
+> **Importante**: si el `Ttulo2` candidato existe pero su texto está íntegramente dentro de elementos `w:del` (es decir, es una eliminación pendiente de aceptar), considerarlo como **no existente** y crear un nuevo `Ttulo2` con el título completo.
 
 ### Estructura del nuevo subapartado
 ```
-CAMBIOS  ← Heading1 existente, no se toca
-  └── [Título del ticket]           ← Heading2  (nuevo)
-        ├── Frontend                ← ListParagraph ilvl=0
-        │   ├── ruta/fichero.js:    ← ListParagraph ilvl=1
-        │   │   └── método – razón  ← ListParagraph ilvl=2
-        │   └── ruta/otro.xml:      ← ListParagraph ilvl=1
-        │       └── descripción     ← ListParagraph ilvl=2
+CAMBIOS  ← Ttulo1 existente, no se toca
+  └── [Título del ticket]           ← Ttulo2  (nuevo)
+        ├── Frontend                ← Prrafodelista ilvl=0
+        │   ├── ruta/fichero.js:    ← Prrafodelista ilvl=1
+        │   │   └── método – razón  ← Prrafodelista ilvl=2
+        │   └── ruta/otro.xml:      ← Prrafodelista ilvl=1
+        │       └── descripción     ← Prrafodelista ilvl=2
 ```
 
 ### Estilos y atributos XML exactos a usar
 | Nivel | Estilo Word (`w:pStyle`) | `w:ilvl` | `w:numId` |
 |---|---|---|---|
-| Título del subapartado | `Heading2` | — | — |
-| "Frontend" | `ListParagraph` | `0` | clonar del `w:numId` del `ListParagraph ilvl=0` más próximo en `CAMBIOS` |
-| Ruta de fichero | `ListParagraph` | `1` | mismo `w:numId` que el nivel 0 |
-| Descripción del cambio | `ListParagraph` | `2` | mismo `w:numId` que el nivel 0 |
+| Título del subapartado | `Ttulo2` | — | — |
+| "Frontend" | `Prrafodelista` | `0` | clonar del `w:numId` del `Prrafodelista ilvl=0` más próximo en `CAMBIOS` (en plantilla SEAT LC: `numId=16`) |
+| Ruta de fichero | `Prrafodelista` | `1` | mismo `w:numId` que el nivel 0 |
+| Descripción del cambio | `Prrafodelista` | `2` | mismo `w:numId` que el nivel 0 |
 
-**Fallback cuando no hay entradas previas en CAMBIOS**: si no existe ningún `ListParagraph` en la sección `CAMBIOS`, usar `numId=1` como punto de partida e inspeccionar `word/numbering.xml` del propio documento para confirmar qué `numId` corresponde a una lista con tres niveles de sangría. Usar ese valor en todos los párrafos del nuevo subapartado.
+**Fallback cuando no hay entradas previas en CAMBIOS**: si no existe ningún `Prrafodelista` en la sección `CAMBIOS`, usar `numId=16` como punto de partida (numId estándar para `Prrafodelista` en la plantilla SEAT LC) e inspeccionar `word/numbering.xml` del propio documento para confirmar qué `numId` corresponde a una lista con tres niveles de sangría. Usar ese valor en todos los párrafos del nuevo subapartado.
+
+> **Verificación de tipo de lista obligatoria**: al clonar o seleccionar el `numId`, localizar su `abstractNumId` en `word/numbering.xml` y confirmar que el nivel 0 tiene `<w:numFmt w:val="bullet"/>` — no `decimal` ni `lowerLetter`. Si es `decimal`, buscar otro `numId` cuyo `abstractNum` defina viñetas (`bullet`) en ilvl 0, 1 y 2. Usar una lista decimal donde se esperan viñetas provoca que los ítems se numeren acumulativamente (p. ej. «11. ABAP:» en lugar de «• ABAP:») a lo largo de todo el documento.
 
 ### Formato del texto en cada nivel
-- **Título (`Heading2`)**: texto completo del título de la incidencia/ticket tal como lo proporcionó el usuario.
+- **Título (`Ttulo2`)**: texto completo del título de la incidencia/ticket tal como lo proporcionó el usuario.
 - **Nivel 0** (`Frontend`): solo esa palabra, sin puntuación.
 - **Nivel 1** (fichero): ruta relativa al proyecto + `:` al final. Ejemplo: `controller/MyController.controller.js:`
 - **Nivel 2** (cambio): formato `nombreMétodo – descripción breve del cambio`. Si no hay método identificable, descripción directa del cambio.
@@ -166,30 +166,32 @@ CAMBIOS  ← Heading1 existente, no se toca
 Insertar un párrafo vacío (`w:p` sin estilo ni contenido) entre el `Heading2` y el primer `ListParagraph`, y otro al final del subapartado, replicando el patrón del documento existente.
 
 ### Modo seguro de escritura — obligatorio
-- No sobrescribir el fichero original en la primera escritura.
-- Crear primero una copia de salida con sufijo `_preview`, `_con_cambios` o equivalente **en la misma carpeta donde está el original**.
-- Al finalizar, informar la ruta de la copia y pedir al usuario confirmación explícita para reemplazar (o no) el original.
-- No reutilizar backups o temporales de sesiones previas como base de una nueva modificación sin verificar que su hash coincide con el fichero origen actual.
+- Descargar el fichero de SharePoint a `/tmp/` antes de modificarlo.
+- Crear una copia `_backup` del fichero descargado en `/tmp/` antes de cualquier modificación.
+- Aplicar los cambios sobre el fichero descargado (no sobre el backup).
+- Validar el resultado localmente antes de subir.
+- No reutilizar descargas de sesiones previas sin verificar que el hash coincide con el ítem actual de SharePoint.
+- Al localizar el punto de inserción (último párrafo antes de `w:sectPr`), usar siempre `rfind(anchor_key, 0, idx_sectPr)` — **nunca `find()`** — para obtener la última ocurrencia del patrón de cierre de párrafo, ya que el mismo fragmento XML puede aparecer cientos de veces antes en el documento.
 
 ### Control de versiones (Track Changes) — obligatorio
 Todo el contenido insertado **siempre** debe ir marcado como revisión pendiente, independientemente de si el documento ya tiene revisiones activas o no:
-- Cada `ListParagraph` nuevo requiere **dos `w:ins` separados** (no uno envolviendo todo el `w:p`):
+- Cada párrafo nuevo requiere **dos `w:ins` separados** (no uno envolviendo todo el `w:p`):
   1. Un `w:ins` vacío dentro de `w:pPr/w:rPr` — marca que el párrafo en sí es nuevo.
   2. Un `w:ins` envolviendo solo el `w:r` con el texto — marca el contenido del run.
-- **Obligatorio**: cada `w:p` nuevo debe incluir `<w:pStyle w:val="ListParagraph"/>` como primer hijo de `w:pPr`, antes de `w:numPr`. Omitirlo hace que Word renderice el párrafo con el estilo Normal en lugar de `ListParagraph`, produciendo una fuente distinta a la del resto del documento.
+- **Obligatorio**: cada `w:p` nuevo debe incluir `<w:pStyle w:val="Prrafodelista"/>` como primer hijo de `w:pPr`, antes de `w:numPr`.
 - Por tanto cada párrafo consume **2 `w:id` consecutivos**. Al calcular el `w:id` de partida, sumar 2 por cada párrafo insertado, no 1.
 - Atributos requeridos en cada `w:ins`:
-  - `w:id`: entero único incremental. **Calcular el `w:id` máximo leyendo directamente el ZIP original en disco** (`zipfile.ZipFile(original).read('word/document.xml')`), nunca sobre una copia desempacada que pudiera provenir de una sesión previa. Sumar 1 a partir de ese máximo; como cada párrafo genera 2 `w:ins`, el contador avanza de 2 en 2.
-  - `w:author`: valor obtenido de `git config user.name` (o el nombre introducido por el usuario en el Paso 3c).
+  - `w:id`: entero único incremental. **Calcular el `w:id` máximo leyendo directamente el ZIP del fichero que se va a modificar en ese momento** (`zipfile.ZipFile(path_actual).read('word/document.xml')`), nunca sobre un backup ni una copia de sesión anterior. En caso de fusión con una versión remota (paso 6b), el máximo debe calcularse sobre la versión remota descargada, no sobre el backup original.
+  - `w:author`: valor obtenido de `mcp_teams-graph_graph_get_current_user` (campo `displayName`).
   - `w:date`: fecha y hora local del sistema en formato `YYYY-MM-DDTHH:MM:SSZ`.
-  - `w16du:dateUtc`: misma fecha en UTC puro (restar el offset horario local a `w:date`). **Obligatorio** para que Word 2021+ muestre el autor y la fecha en los globos de revisión. Sin este atributo, el texto aparece subrayado en color pero sin nombre ni hora visible.
+  - `w16du:dateUtc`: misma fecha en UTC puro (restar el offset horario local a `w:date`). **Obligatorio** para que Word 2021+ muestre el autor y la fecha en los globos de revisión.
 - No reutilizar el `w:author` ni el `w:id` de revisiones existentes en el documento.
 
 Ejemplo de estructura XML para un párrafo de nivel 0 (IDs 119 y 120):
 ```xml
 <w:p>
   <w:pPr>
-    <w:pStyle w:val="ListParagraph"/>
+    <w:pStyle w:val="Prrafodelista"/>
     <w:numPr><w:ilvl w:val="0"/><w:numId w:val="[numId del documento]"/></w:numPr>
     <w:rPr>
       <w:ins w:id="119" w:author="Nombre Apellido" w:date="2026-03-24T10:00:00Z" w16du:dateUtc="2026-03-24T09:00:00Z"/>
@@ -201,8 +203,17 @@ Ejemplo de estructura XML para un párrafo de nivel 0 (IDs 119 y 120):
 </w:p>
 ```
 
+### Declaración de namespace `w16du` — obligatorio
+Antes de serializar, comprobar que el namespace `w16du` está declarado en el elemento raíz. Si no lo está (documento creado antes de Word 2021), añadirlo explícitamente:
+
+```python
+W16DU = 'http://schemas.microsoft.com/office/word/2023/wordml/word16du'
+if 'w16du' not in tree.nsmap:
+    tree.attrib['{http://www.w3.org/2000/xmlns/}w16du'] = W16DU
+```
+
 ### Normalización de la declaración XML — obligatorio
-Tras serializar `word/document.xml` con lxml (`tree.write()`), verificar que la declaración XML usa **comillas dobles**. lxml puede generarla con comillas simples, lo que algunos parsers de Word rechazan:
+Tras serializar `word/document.xml` con lxml (`tree.write()`), verificar que la declaración XML usa **comillas dobles**:
 
 ```python
 xml_str = xml_bytes.decode('utf-8')
@@ -215,64 +226,130 @@ xml_str = xml_str.replace(
 
 ---
 
-## Paso 3c — Autor de los cambios (solo si destino = `.docx`)
+## Paso — Autor de los cambios
 
-Ejecuta `git config user.name`. Si el resultado es un nombre completo legible (contiene al menos dos palabras), úsalo directamente sin preguntar. Si es un alias técnico (un solo token, sin espacios), pregunta:
-> ¿Cuál es tu nombre completo? Lo usaré como autor en las marcas de revisión del documento.
+Llama a `mcp_teams-graph_graph_get_current_user` para obtener el `displayName` del usuario de Teams autenticado. Usa ese valor como `w:author` en todas las marcas de revisión del documento. No preguntes al usuario por su nombre.
 
 ---
 
 ## Ejecución
 
-Una vez recogidos todos los parámetros, aplica siempre estos valores fijos:
+Una vez recogidos todos los parámetros:
+
+### 1. Leer referencias SharePoint
+Lee `.github/sharepoint_refs.md` para obtener el `site_id`, la carpeta de Plantillas y los demás identificadores. Si la carpeta de Plantillas tiene IDs pendientes, ejecuta el procedimiento de descubrimiento descrito en "Plantilla corporativa LC — descubrimiento y registro".
+
+### 2. Localizar el fichero LC en SharePoint
+Sigue este orden estricto para localizar el LC:
+
+**2.1 Buscar en la carpeta canónica** (`0. Logs de cambios`):
+En el fichero `.github/sharepoint_refs.md`, busca la entrada del proyecto indicado. Si existe una sección con la ruta `<módulo>/0. Documentación/0. Logs de cambios`, usa el **Drive Item ID** de esa carpeta y lista su contenido con `mcp_teams-graph_sharepoint_list_items`.
+
+- Si la sección no existe o los IDs no están registrados → pasar al punto 2.2.
+- Si la carpeta `0. Logs de cambios` existe y contiene ficheros LC → seleccionar **la versión más alta** (comparar número de versión, p. ej. `v1.2 > v1.1 > v1.0`; si no hay versión explícita, usar `lastModifiedDateTime` más reciente).
+
+**2.2 Búsqueda por nombre en SharePoint** (si 2.1 no resolvió):
+Usa `mcp_teams-graph_sharepoint_search_files` con un patrón que combine el nombre del proyecto y `LC` o `Log de Cambios`.
+
+- Si la búsqueda devuelve resultados en varias carpetas, **preferir siempre el fichero ubicado en una ruta que contenga `0. Logs de cambios`** frente a los que estén en subcarpetas de subproyectos u otras ubicaciones.
+- Si hay varias versiones del mismo LC: seleccionar **siempre la de versión más alta**.
+- Registra el **Drive Item ID** de la carpeta encontrada en `.github/sharepoint_refs.md` para futuras ejecuciones.
+
+**2.3 Si no se encuentra ningún LC**:
+Preguntar al usuario: _"No he encontrado un LC para el proyecto `<proyecto>` en SharePoint. ¿Puedes indicarme el nombre exacto del fichero o la ruta donde se encuentra?"_
+
+Si el usuario confirma que no existe y quiere crearlo:
+- Descarga la plantilla `SEAT - LC PLANTILLA v1.0.docx` desde la carpeta de Plantillas.
+- **Antes de subir el nuevo LC**, avisa al usuario: _"Voy a crear el fichero `SEAT - LC <PROYECTO> v1.0.docx` en la carpeta `0. Logs de cambios` del proyecto. ¿Confirmas?"_. Espera respuesta explícita.
+- **No crear carpetas** (`0. Documentación`, `0. Logs de cambios`) sin autorización explícita del usuario. Si la carpeta de destino no existe, informar al usuario y pedirle que la cree manualmente o que autorice su creación.
+
+### 3. Obtener el diff local
+Aplica siempre estos valores fijos:
 - Desglose por fichero + método/vista cuando se detecte: **sí**
 - Incluir ficheros eliminados/renombrados: **sí**
 - Rutas: **relativas**
 
-1. Obtén el diff con el comando adecuado según el origen elegido:
-   - Sin commit: `git status` + `git diff HEAD`
-   - Entre ramas: `git diff <rama-base>...HEAD --name-status` y luego `git diff <rama-base>...HEAD`
-2. Analiza cada fichero modificado e infiere el elemento interno (controlador, vista, fragmento, modelo, utils) cuando sea posible.
-3. Genera la salida según el destino:
-   - **Chat**: presenta la cabecera como `##` fuera de cualquier bloque, seguida del log renderizado directamente como lista Markdown (sin bloque de código) con tres niveles de sangría:
-     - Nivel 0 (`- `): bloque `Frontend`.
-     - Nivel 1 (`  - `): ruta relativa del fichero seguida de `:`. Ejemplo: `webapp/utils/manageCAP.js:`
-     - Nivel 2 (`    - `): `` `nombreMétodo` `` en backticks + ` – descripción única que consolida todos los cambios del método en una sola frase`. Si no hay método identificable, descripción directa sin backticks.
-     - Un método = una única línea de nivel 2, independientemente de cuántos cambios tenga. Agrupar todos los cambios del mismo método en una sola descripción concisa. Mantener el mismo orden que devuelve el diff.
-   - **Fichero `.docx`**: sigue el procedimiento de la skill `docx` (`.github/skills/docx/SKILL.md`) para editar el documento. Clona siempre los estilos de párrafo de las entradas Frontend existentes (niveles 0, 1, 2 de lista). No modificar nada fuera de la sección indicada. Buscar el original por nombre: primero en la carpeta raíz del proyecto, luego en la raíz del workspace. Crear la copia en la misma carpeta donde se encontró el original.
-   - **Fichero `.md` / `.txt`**: añade el contenido en la sección indicada con el mismo estilo de headings del resto del fichero.
+Obtén el diff en **dos fases** para evitar timeouts por exceso de output:
 
-Para destino `.docx`, tras generar la copia validada, comunicar siempre:
-- ruta exacta de la copia generada;
-- que el original permanece intacto;
-- pregunta final: si desea sustituir el original por la copia.
+**Fase 3a — lista de ficheros modificados:**
+```bash
+# Sin commit:
+git status --short
+# Entre ramas:
+git diff <rama-base>...HEAD --name-status
+```
 
-Una vez confirmada (o rechazada) la sustitución, proponer al usuario eliminar los ficheros temporales generados durante el proceso:
-- directorio de desempaquetado (por ejemplo `/tmp/docx_unpack/`);
-- scripts auxiliares creados en `/tmp/` (por ejemplo `/tmp/insert_frontend.py`).
+**Fase 3b — diff por grupos de 3-4 ficheros relacionados:**
+```bash
+# Repetir por grupos hasta cubrir todos los ficheros de la fase 3a:
+git diff <rama-base>...HEAD -- fichero1 fichero2 fichero3 \
+  | grep -E "^(diff --git|@@|[+-][^+-])" \
+  | grep -v "^--- " | grep -v "^+++ " \
+  | head -150
+```
 
-Ejemplo de mensaje:
-> ¿Quieres que elimine los ficheros temporales generados durante el proceso?
-> - `/tmp/docx_unpack/`
-> - `/tmp/insert_frontend.py` _(si se creó)_
->
-> Si los elimino, no podrás recuperarlos. El documento final ya está guardado en su ubicación definitiva.
+> **Por qué por grupos**: `git diff` sin filtro puede superar el límite del buffer del terminal y fallar silenciosamente. Dividir en grupos de ficheros relacionados garantiza que el output se procesa completo.
+
+Analiza cada fichero modificado e infiere el elemento interno (controlador, vista, fragmento, modelo, utils) cuando sea posible.
+
+### 4. Insertar el log en el `.docx`
+Sigue las directrices de inserción de la sección anterior. Genera la salida en tres niveles de lista dentro del bloque `Frontend`:
+- Nivel 0 (`- `): bloque `Frontend`.
+- Nivel 1: ruta relativa del fichero seguida de `:`.
+- Nivel 2: `` `nombreMétodo` `` en backticks + ` – descripción única` que consolida todos los cambios del método en una sola frase.
+
+Un método = una única línea de nivel 2. Mantener el mismo orden que devuelve el diff.
+
+### 5. Validar el resultado
+Antes de subir, aplica todas las validaciones:
+1. `word/document.xml` es XML bien formado.
+2. El bloque insertado está dentro de `CAMBIOS` y no fuera.
+3. El nuevo contenido queda antes de `w:sectPr`.
+4. El texto visible del bloque insertado contiene el título del ticket y la entrada `Frontend` esperada. La búsqueda debe hacerse **a partir de la posición del `Ttulo2` del ticket**, no desde el inicio.
+5. El número de `Ttulo1` y `Ttulo2` no disminuye respecto al documento origen.
+6. Los `w:id` recién asignados (≥ `max_id_original + 1`) son únicos entre sí. **Usar el patrón `<w:ins[^>]+w:id="(\d+)"` para extraer solo IDs de Track Changes** — no el patrón genérico `w:id="(\d+)"`, que capturaría también bookmarks, comentarios y campos, produciendo falsos positivos.
+7. Si falla cualquier validación, conservar el original en SharePoint y entregar solo el fichero local de diagnóstico.
+8. Si el documento tiene un TOC (`w:sdt` con entradas `TDC`): (a) confirmar que `fldChar begin/instrText/separate` están en un único párrafo; (b) confirmar que `fldChar begin` no tiene `dirty="true"`. Corregir ambos antes de subir si no se cumple alguna condición.
+9. Si el ZIP fue reconstruido mediante un `dict` (patrón `all_files = {n: z.read(n) for n in z.namelist()}`), verificar que todas las extensiones presentes en `word/media/` tienen un `Default` en `[Content_Types].xml`. Las extensiones `.emf` y `.wmf` **no están registradas** en la plantilla SEAT y provocan «contenido no legible». Eliminarlas del dict antes de escribir el ZIP si no son referenciadas en ningún `.rels`.
+
+### 6. Subir a SharePoint
+Usa `mcp_teams-graph_sharepoint_upload_local_file` para subir el fichero modificado al mismo ítem de SharePoint del que se descargó.
+
+Si la subida devuelve `CONFLICT_DETECTED` (eTag obsoleto), ejecuta el **Paso 6b** antes de continuar.
+
+Tras la subida exitosa, comunica al usuario:
+- URL del ítem en SharePoint para revisión.
+- Ruta del backup local `/tmp/..._backup.docx`.
+- Pregunta: ¿quieres que elimine los ficheros temporales generados? (lista los paths).
+
+### 6b. Gestión de conflicto eTag
+Si `sharepoint_upload_local_file` devuelve `CONFLICT_DETECTED`:
+1. Descarga la versión actual del fichero desde SharePoint a `/tmp/..._remote.docx`.
+2. Compara párrafos del remote vs el `_backup` original para identificar los cambios ajenos (posiciones que difieren entre remote y backup).
+3. **Si los cambios ajenos no solapan con el bloque insertado** → fusión automática:
+   - Extrae el bloque insertado del fichero local usando `rfind(anchor_key, 0, idx_sectPr)`.
+   - Recalcula el offset de IDs: `offset = max_id_remote - max_id_original`.
+   - Renumera los `w:ins` del bloque: `new_id = old_id + offset`.
+   - Re-inserta el bloque renumerado en la versión remota antes de `w:sectPr`.
+4. **Si hay solapamiento** → informar al usuario con los párrafos en conflicto y detener sin modificar SharePoint.
+5. Valida el fichero merged (mismas validaciones del paso 5).
+6. Obtén el nuevo eTag con `mcp_teams-graph_sharepoint_list_items` y reintenta la subida con el `if_match` actualizado.
+
+### 7. Limpieza opcional
+Una vez confirmada la subida, proponer al usuario eliminar:
+- El fichero temporal descargado desde SharePoint (`/tmp/...docx`).
+- El backup local (`/tmp/..._backup.docx`).
+- Scripts auxiliares creados en `/tmp/`.
+
+---
 
 ## Validación obligatoria para `.docx`
 
-Antes de dar por bueno el resultado:
-1. Validar que `word/document.xml` sigue siendo XML bien formado.
-2. Validar que el bloque insertado está dentro de `CAMBIOS` y no fuera de esa sección.
-3. Validar que el nuevo contenido queda antes de `w:sectPr` y dentro del flujo principal del documento.
-4. Verificar que el texto visible del bloque insertado contiene el título del ticket y la entrada `Frontend` esperada. La búsqueda debe hacerse **a partir de la posición del `Heading2` del ticket** en el XML, no desde el inicio del documento — el documento puede contener otras ocurrencias anteriores de las mismas palabras que no corresponden al bloque recién insertado.
-5. Verificar que el número de `Heading1` y `Heading2` no disminuye inesperadamente respecto al documento origen.
-6. Verificar que los **`w:id` recién asignados** (aquellos ≥ `max_id_original + 1`) son únicos entre sí. No comparar contra los IDs del documento original: Word genera internamente IDs duplicados en su historial de revisiones y eso es esperado; verificar solo los nuevos evita falsos positivos en la validación.
-7. Si falla cualquier validación, conservar el original y entregar solo una copia de diagnóstico.
+_(ver paso 5 de la sección "Ejecución")_
 
 ## Índice (`TOC`) en `.docx`
 
 - No insertar ni actualizar el índice salvo que el usuario lo pida explícitamente.
-- Insertar un campo TOC no equivale a recalcular el índice final.
 - No afirmar que el índice está actualizado si no se ha ejecutado una herramienta que refresque campos de Word/LibreOffice.
 
 ---
@@ -281,8 +358,10 @@ Antes de dar por bueno el resultado:
 
 - No inventar cambios: basarse únicamente en el diff real.
 - **Listar todos los ficheros modificados sin excepción**, independientemente de su tipo: `.js`, `.xml`, `.css`, `.properties` (i18n), imágenes, `.json`, `.yaml`, `.html`, etc.
-- En destino `.docx`, crear **solo** el apartado `Frontend`: todos los cambios (incluidos los de backend) se documentan dentro de ese bloque.
+- Crear **solo** el apartado `Frontend`: todos los cambios (incluidos los de backend) se documentan dentro de ese bloque.
 - Priorizar claridad y brevedad en cada descripción.
 - Agrupar por fichero y mantener orden estable (mismo orden que devuelve el diff).
-- Si el destino es `.docx`, seguir el procedimiento de la skill `docx` (`.github/skills/docx/SKILL.md`). **Siempre** marcar cada párrafo nuevo con dos `w:ins` separados (uno en `w:pPr/w:rPr` y otro envolviendo `w:r`) con autor (`git config user.name`), `w:date` (hora local del sistema) y `w16du:dateUtc` (hora UTC, restando el offset local), independientemente de si el documento ya tiene Track Changes activos. Cada párrafo consume 2 `w:id` consecutivos. No reutilizar `w:id` ni `w:author` de revisiones existentes.
+- **Siempre** marcar cada párrafo nuevo con dos `w:ins` separados (uno en `w:pPr/w:rPr` y otro envolviendo `w:r`) con autor, `w:date` (hora local) y `w16du:dateUtc` (hora UTC), independientemente de si el documento ya tiene Track Changes activos.
+- Cada párrafo consume 2 `w:id` consecutivos. No reutilizar `w:id` ni `w:author` de revisiones existentes.
 - No considerar exitosa una edición de `.docx` únicamente porque el XML haga parse: la validación semántica del contenido insertado es obligatoria.
+- No subir a SharePoint sin haber validado el fichero localmente primero.

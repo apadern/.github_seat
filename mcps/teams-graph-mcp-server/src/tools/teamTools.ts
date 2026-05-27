@@ -67,4 +67,29 @@ export function registerTeamTools(server: McpServer, graph: IGraphClient): void 
       return { content: [{ type: "text", text: lines.join("\n") }] };
     }
   );
+
+  // Herramienta para obtener el perfil del usuario autenticado /
+  // Tool to get the authenticated user's profile
+  server.registerTool(
+    "graph_get_current_user",
+    {
+      title: "Get Current User",
+      description:
+        "Devuelve el perfil del usuario autenticado en Microsoft Graph: id, displayName, mail y userPrincipalName. " +
+        "Usa displayName como w:author en Track Changes de documentos Word.",
+      inputSchema: {},
+      annotations: { readOnlyHint: true, destructiveHint: false },
+    },
+    async () => {
+      const user = await graph.getCurrentUser();
+      const lines = [
+        `# Usuario autenticado`,
+        `- **Nombre**: ${user.displayName}`,
+        `- **ID**: \`${user.id}\``,
+        `- **Email**: ${user.mail ?? user.userPrincipalName ?? "—"}`,
+        `- **UPN**: ${user.userPrincipalName ?? "—"}`,
+      ];
+      return { content: [{ type: "text", text: lines.join("\n") }] };
+    }
+  );
 }

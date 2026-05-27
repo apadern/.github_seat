@@ -5,6 +5,7 @@ import type {
   Site,
   Drive,
   DriveItem,
+  GraphUser,
   GraphListResponse,
 } from "./types.js";
 
@@ -231,7 +232,7 @@ export class MockGraphClient implements IGraphClient {
     });
   }
 
-  uploadSiteFile(_siteId: string, parentId: string, fileName: string, content: string | Buffer, _contentType?: string): Promise<DriveItem> {
+  uploadSiteFile(_siteId: string, parentId: string, fileName: string, content: string | Buffer, _contentType?: string, _ifMatch?: string): Promise<DriveItem> {
     const size = typeof content === "string" ? content.length : content.byteLength;
     console.error(`[Mock] Simulated SharePoint upload: ${fileName} (${size} bytes) → folder ${parentId}`);
     return Promise.resolve({
@@ -301,6 +302,17 @@ export class MockGraphClient implements IGraphClient {
       createdDateTime: now,
       webUrl: `https://mock.sharepoint.com/sites/mock/${name}`,
       "@microsoft.graph.downloadUrl": `https://mock.download/path/${encodeURIComponent(name)}`,
+    });
+  }
+
+  // Mock: devuelve un usuario de prueba /
+  // Mock: returns a test user
+  getCurrentUser(): Promise<GraphUser> {
+    return Promise.resolve({
+      id: "mock-user-001",
+      displayName: "Mock User",
+      mail: "mockuser@example.com",
+      userPrincipalName: "mockuser@example.com",
     });
   }
 }

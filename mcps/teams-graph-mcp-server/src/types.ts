@@ -30,6 +30,7 @@ export interface Channel {
 export interface DriveItem {
   id: string;
   name: string;
+  eTag?: string;
   size?: number;
   file?: { mimeType: string };
   folder?: { childCount: number };
@@ -77,7 +78,7 @@ export interface IGraphClient {
   getSiteDriveRoot(siteId: string): Promise<DriveItem>;
   listSiteChildren(siteId: string, itemId: string): Promise<GraphListResponse<DriveItem>>;
   getSiteItem(siteId: string, itemId: string): Promise<DriveItem & { "@microsoft.graph.downloadUrl"?: string }>;
-  uploadSiteFile(siteId: string, parentId: string, fileName: string, content: string | Buffer, contentType?: string): Promise<DriveItem>;
+  uploadSiteFile(siteId: string, parentId: string, fileName: string, content: string | Buffer, contentType?: string, ifMatch?: string): Promise<DriveItem>;
   createSiteFolder(siteId: string, parentId: string, folderName: string): Promise<DriveItem>;
   deleteSiteItem(siteId: string, itemId: string): Promise<void>;
   patchSiteItem(siteId: string, itemId: string, patch: Record<string, unknown>): Promise<DriveItem>;
@@ -86,4 +87,23 @@ export interface IGraphClient {
   // Descarga binaria y acceso por ruta / Binary download and path-based access
   downloadFileBuffer(downloadUrl: string): Promise<Buffer>;
   getSiteItemByPath(siteId: string, itemPath: string): Promise<DriveItem & { "@microsoft.graph.downloadUrl"?: string }>;
+
+  // Usuario autenticado / Authenticated user
+  getCurrentUser(): Promise<GraphUser>;
+}
+
+export interface GraphUser {
+  id: string;
+  displayName: string;
+  mail?: string;
+  userPrincipalName?: string;
+}
+
+/** Error lanzado cuando Graph API devuelve 412 Precondition Failed (conflicto de ETag) /
+ *  Error thrown when Graph API returns 412 Precondition Failed (ETag conflict) */
+export class ETagConflictError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "ETagConflictError";
+  }
 }
