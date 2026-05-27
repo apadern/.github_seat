@@ -9,6 +9,9 @@ applyTo: 'webapp/**' → solo una carpeta
 applyTo: '**/*.{js,ts,xml}' → varias extensiones 
 -->
 
+
+
+
 ## 1. Introducción e instrucciones para la generación de código
 Este documento presenta las mejores prácticas para desarrollar aplicaciones usando SAPUI5, con el objetivo de mejorar la calidad del código y la experiencia de usuario.
 
