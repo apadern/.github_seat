@@ -110,6 +110,16 @@ Todas las tablas del documento usan el estilo personalizado `TablaSEAT2` (`<w:tb
 
 ## Procedimiento (paso a paso)
 
+### Paso 0 — Verificar setup del MCP de Teams
+
+Antes de cualquier llamada a SharePoint, invocar el skill **`setup-teams-mcp`** (`/.github/skills/setup-teams-mcp/SKILL.md`):
+
+1. Ejecutar el script de detección del Paso 1 del skill.
+2. Si todas las comprobaciones son `✅`, continuar con el Paso 1.
+3. Si alguna comprobación falla (`❌`), ejecutar los pasos de corrección (2 y/o 3 del skill) y **detener el flujo** para indicar al usuario que haga **Reload Window** y arranque el servidor `teams-graph` desde el panel MCP antes de continuar.
+
+---
+
 ### Paso 1 — Localizar y leer el documento origen
 1. Buscar el fichero con `file_search` por nombre en el workspace.
 2. Si hay más de una coincidencia, listarlas y preguntar al usuario cuál usar.

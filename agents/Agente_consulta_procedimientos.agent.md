@@ -53,6 +53,16 @@ pip3 install "lxml==5.3.0" -q
 
 ## Procedimiento
 
+### Paso -1 — Verificar setup del MCP de Teams
+
+Antes de cualquier llamada a SharePoint, invocar el skill **`setup-teams-mcp`** (`/.github/skills/setup-teams-mcp/SKILL.md`):
+
+1. Ejecutar el script de detección del Paso 1 del skill.
+2. Si todas las comprobaciones son `✅`, continuar con el Paso 0.
+3. Si alguna comprobación falla (`❌`), ejecutar los pasos de corrección (2 y/o 3 del skill) y **detener el flujo** para indicar al usuario que haga **Reload Window** y arranque el servidor `teams-graph` desde el panel MCP antes de continuar.
+
+---
+
 ### Paso 0 — Comprobar caché de sesión
 
 Antes de cualquier llamada a SharePoint, comprobar si el documento ya fue cargado en esta sesión:
