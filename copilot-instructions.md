@@ -146,7 +146,7 @@ onInit: function () {
 
 **Directrices**:
 - Añadir un comentario explicativo bilingüe antes de cada definición CSS (clase, variable, bloque `@media`, etc.). El formato sigue la misma convención que el resto del proyecto: español primero, inglés después, separados por ` / `. Los comentarios CSS usan la sintaxis `/* */`.
-Ejemplo:
+Ejemplo:  
 ```css
 /* Barra de herramientas superior de la vista de lista /
    Top toolbar of the list view */
