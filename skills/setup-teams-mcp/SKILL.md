@@ -73,7 +73,7 @@ echo ""
 echo "NODE_OK=$NODE_OK  DIST_OK=$DIST_OK  MCP_JSON_OK=$MCP_JSON_OK"
 ```
 
-Leer el output e identificar qué acciones son necesarias. Si todo es `✅`, saltarse los pasos 2 y 3 directamente al Paso 4 (verificación de autenticación del agente llamante).
+Leer el output e identificar qué acciones son necesarias. Si todo es `✅`, saltarse los pasos 2 y 3 directamente al Paso 4 (arranque y verificación del servidor) y Paso 5 (autenticación de Teams).
 
 ---
 
@@ -130,24 +130,77 @@ ls -la /home/user/projects/.vscode/mcp.json 2>/dev/null || echo "FICHERO_NO_EXIS
 
 ---
 
-### Paso 4 — Informar al usuario si se realizaron cambios
+### Paso 4 — Arrancar el servidor MCP tras recargar la ventana
 
 Si se ejecutaron acciones en los pasos 2 o 3, **detener el flujo y mostrar este mensaje al usuario**:
 
 > ⚙️ **Setup del MCP de Teams completado**
 >
-> Se han realizado los siguientes cambios para que el servidor MCP funcione correctamente:
+> Se han realizado los siguientes cambios:
 >
 > - _(listar las acciones realizadas: npm install / npm run build / registro en mcp.json)_
 >
-> **Pasos necesarios antes de continuar:**
+> **Sigue estos pasos exactamente para poner en marcha el servidor:**
 >
-> 1. Ejecuta el comando **Developer: Reload Window** en VS Code
->    (`Ctrl+Shift+P` → escribe `Reload Window` → Enter)
-> 2. Una vez recargada la ventana, abre el panel de Chat, localiza el servidor **teams-graph** en la sección MCP y pulsa **Start Server**.
-> 3. Cuando el servidor esté en estado **Running**, vuelve a ejecutar este prompt o agente.
+> **1. Recarga la ventana de VS Code**
+> - Pulsa `Ctrl+Shift+P`, escribe **`Reload Window`** y pulsa Enter.
+> - Espera a que VS Code termine de cargar completamente.
+>
+> **2. Arranca el servidor MCP desde la paleta de comandos**
+> - Pulsa `Ctrl+Shift+P`, escribe **`MCP: List Servers`** y pulsa Enter.
+> - En la lista que aparece, selecciona **`teams-graph`**.
+> - Pulsa **`Start Server`**.
+> - El estado debe cambiar a verde 🟢 o mostrar **Running**.
+>
+> **3. Confirma que el servidor está en marcha**
+> - Vuelve a este chat y responde **"servidor listo"** para continuar con la autenticación.
 
-No continuar el flujo principal hasta que el usuario confirme que el servidor está en marcha.
+No continuar al Paso 5 hasta que el usuario confirme que el servidor está en estado **Running**.
+
+---
+
+### Paso 5 — Verificar y realizar la autenticación de Teams
+
+Con el servidor `teams-graph` en estado Running, verificar si la sesión de Microsoft/Teams está activa intentando llamar a una herramienta de comprobación.
+
+**5a. Comprobar el estado de autenticación**
+
+Comprobar si existe el fichero de caché de token (instantáneo, sin llamada a SharePoint):
+
+```bash
+ls ~/.teams-graph-mcp-msal-cache.json 2>/dev/null && echo "TOKEN_EXISTE" || echo "NO_TOKEN"
+```
+
+- Si el output es `NO_TOKEN` → autenticación necesaria ❌. **Pasar inmediatamente al paso 5b en el mismo turno, sin esperar confirmación del usuario.**
+- Si el output es `TOKEN_EXISTE` → el token está cacheado ✅. Continuar al flujo principal. Si más adelante una llamada a SharePoint devuelve `401` o `token expired`, volver al paso 5b.
+
+**5b. Si la autenticación NO está activa — el agente ejecuta el login directamente**
+
+No pedir al usuario que ejecute nada y no esperar confirmación — ejecutar en el mismo turno. El agente debe lanzar el comando de autenticación desde el terminal:
+
+```bash
+cd /home/user/projects/.github/mcps/teams-graph-mcp-server
+npm run auth
+```
+
+El comando mostrará una URL de Microsoft login en el output del terminal. Mostrar esa URL al usuario con el siguiente mensaje:
+
+> 🔐 **Autenticación de Teams requerida**
+>
+> Abre esta URL en el navegador e inicia sesión con tu cuenta corporativa SEAT / NTT Data:
+>
+> `[URL que aparece en el terminal]`
+>
+> Cuando hayas completado el login, responde **"autenticado"** aquí.
+
+**5c. Verificación post-autenticación**
+
+Tras la confirmación del usuario, volver a invocar la herramienta de comprobación del paso 5a:
+- Si responde con datos válidos → flujo completado ✅. Continuar con el agente llamante.
+- Si sigue fallando → mostrar el error exacto al usuario y sugerir:
+  1. Reiniciar el servidor MCP (Stop + Start en el panel MCP de VS Code).
+  2. Volver a ejecutar el login del paso 5b.
+  3. Si persiste, revisar que `TEAMS_MCP_CLIENT_ID` y `TEAMS_MCP_TENANT_ID` en `mcp.json` son correctos.
 
 ---
 
@@ -155,3 +208,4 @@ No continuar el flujo principal hasta que el usuario confirme que el servidor es
 
 - `node_modules/` puede existir pero estar incompleto si `npm install` fue interrumpido. Si las herramientas MCP fallan incluso con `dist/` presente, sugerir al usuario limpiar con `rm -rf node_modules && npm install`.
 - El registro en `mcp.json` puede estar correcto pero el servidor puede estar parado. En ese caso el agente llamante recibirá un error de herramienta; el usuario debe arrancar el servidor manualmente desde el panel MCP de VS Code.
+- Un token de autenticación puede estar expirado aunque la sesión previa fuera correcta. En ese caso el error será `401` o `token expired`; repetir el paso 5b.

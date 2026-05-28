@@ -13,7 +13,7 @@
 
 | Campo | Valor |
 |---|---|
-| **Nombre** | `0. Información General - SEAT - PROCEDIMIENTOS INTERNOS.docx` |
+| **Nombre** | `SEAT - PROCEDIMIENTOS INTERNOS.docx` |
 | **Item ID** | `01DSNDNNK73VOZ76CX3RH2FYO3REO3H3KU` |
 | **Carpeta "0. Información General"** | `01DSNDNNMULLUTMEQHHVF2TLASOQTV3LKH` |
 

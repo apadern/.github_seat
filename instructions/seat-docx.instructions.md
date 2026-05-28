@@ -95,6 +95,8 @@ La especificación correcta usa referencias de tema, **no fuentes nombradas**:
 
 ## 5. Track Changes (`w:ins`)
 
+**Regla general — modificaciones sin nueva versión del documento**: siempre que se realice cualquier edición sobre un documento existente sin crear una versión nueva del mismo, activar el control de cambios y marcar todo el contenido nuevo o modificado como `w:ins` pendiente de aceptar. Esto permite al usuario revisar y aprobar los cambios antes de que queden fijos en el documento. Aplica a cualquier tipo de edición (añadir, modificar o eliminar contenido) en cualquier tipo de documento (LC, DT, DF, procedimientos, etc.); solo se omite cuando el usuario pide expresamente que los cambios se apliquen directamente.
+
 Cuando se requiere marcar contenido como revisión pendiente (obligatorio en LC; opcional en DT/DF):
 
 - **2 `w:id` consecutivos por párrafo**: uno en `w:pPr/w:rPr` (marca que el párrafo es nuevo) y otro envolviendo el `w:r` con el texto (marca el contenido).
