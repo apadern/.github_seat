@@ -503,6 +503,7 @@ def set_calibri_cuerpo(rf_elem):
 | **Borde añadido a imágenes de portada o footer** | El logo SEAT o el icono corporativo aparece con borde negro | Los bordes solo deben aplicarse a imágenes en la sección de **contenido** (en o después del primer `Ttulo1`). Las imágenes anteriores al primer `Ttulo1` pertenecen a la portada y **nunca** deben recibir borde. Las imágenes en los ficheros `word/footer*.xml` y `word/header*.xml` **tampoco** deben recibir borde (el script que itera `document.xml` las omite automáticamente, pero si se procesan ficheros de cabecera/pie, aplicar la misma exclusión). Calcular `first_ttulo1_idx` y saltar las imágenes con `i < first_ttulo1_idx`. |
 | **Imágenes inline con texto** (imagen + texto en el mismo párrafo) | La imagen aparece pegada al texto en la misma línea en lugar de en su propio bloque | Dividir el párrafo: texto primero (en la posición original, mismo estilo), imagen después (nuevo párrafo `paragraph`). Ver regla "Imágenes en párrafo propio" en el prompt de migración. |
 | **Sin párrafo vacío tras imágenes** | El siguiente bloque de texto aparece inmediatamente bajo la imagen sin separación visual | Añadir un párrafo vacío de estilo `paragraph` después de cada párrafo de solo-imagen, excepto cuando el siguiente elemento también es solo-imagen. No añadir en párrafos de la sección de portada. |
+| **Sin párrafo vacío de cierre de apartado** | El espacio visual entre el último contenido de un apartado y el siguiente heading es inexistente o procede del espaciado automático del heading, no de un vacío explícito | Al insertar o migrar contenido, añadir siempre un párrafo vacío `paragraph` (`<w:spacing w:before="100" w:after="100"/>`) como **último hijo** de cada apartado (`Ttulo1`, `Ttulo2`, `Ttulo3`), justo antes del siguiente heading o de `w:sectPr`. Esto aplica tanto en inserciones incrementales como en migraciones completas. Validar con: `missing = [i for i,p in enumerate(kids) if p.tag==W+'p' and get_style(p) in HEADING_STYLES and i>0 and not is_empty(kids[i-1])]`. |
 | **`beforeAutospacing="1"` en estilo `paragraph`** | Espacio visual excesivo ("caja vacía") entre el título de una sección y el primer párrafo de texto | Eliminar `w:beforeAutospacing` y `w:afterAutospacing` del estilo `paragraph` en `styles.xml`. Mantener solo `w:before="100"` y `w:after="100"` (5pt fijos) con `<w:contextualSpacing/>`. |
 | **Versión en columna Comentarios** | La tabla de gestiones muestra `1.0` en Comentarios y el texto de la versión en Versión | El orden correcto es `datos = ['1.0', 'DD/MM/YYYY', 'AUTOR', 'Comentario']`; el número de versión va en la primera columna (índice 0), no en la cuarta. |
 | **`w:rPr` del original en portada con color rojo** | Texto de la segunda línea de portada aparece en rojo en lugar de negro | El original puede tener `<w:color w:val="CC0000"/>` en su rPr, y **la propia plantilla también puede tenerlo**. Tomar siempre el `w:rPr` del run de portada de la **plantilla** (`tmpl_kids[13].find(W+'r').find(W+'rPr')`), hacer `copy.deepcopy()`, y eliminar **siempre** cualquier `w:color` explícito antes de adjuntarlo al run: `for el in new_rpr.findall(W+'color'): new_rpr.remove(el)`. Esta eliminación es **obligatoria**, no opcional. |
@@ -682,6 +683,7 @@ conflicts = remote_changes & own_changes
 - [ ] La inserción se ha realizado con lxml, no con regex como mecanismo principal de posicionamiento estructural.
 - [ ] La declaración XML usa comillas dobles.
 - [ ] Todos los puntos de la validación semántica (Paso 5) han pasado.
+- [ ] Cada sección insertada tiene un párrafo vacío `paragraph` al final (antes del siguiente heading o de `w:sectPr`).
 - [ ] El usuario ha sido informado de la ruta de la copia y ha decidido si reemplazar el original.
 - [ ] Se ha ofrecido la limpieza de ficheros temporales.
 
@@ -701,6 +703,7 @@ conflicts = remote_changes & own_changes
 - [ ] Fuentes: `set_calibri_cuerpo` aplicado a todos los `w:rFonts` de `document.xml` + `styles.xml`; 0 fuentes nombradas; `SeatMetaNormal` eliminado con regex
 - [ ] Imágenes de contenido (desde `Ttulo1`): borde correcto con `<a:noFill/>` + `<a:ln>`; portada/footer/header: sin borde
 - [ ] Imágenes en su propio párrafo; párrafo vacío tras imagen-única
+- [ ] Cada sección `Ttulo1/2/3` tiene párrafo vacío `paragraph` al final (después del último contenido, antes del siguiente heading o `w:sectPr`)
 - [ ] `numId` del contenido: 0 huérfanos; `numbering.xml`: 0 fuentes nombradas
 - [ ] `.rels` construido como string; `xmlns=` exactamente 1 vez; 0 `Id` duplicados
 - [ ] ZIP escrito con patrón `dict → nuevo ZipFile` (sin modo `'a'`)

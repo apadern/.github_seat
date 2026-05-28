@@ -111,6 +111,12 @@ Cuando se requiere marcar contenido como revisión pendiente (obligatorio en LC;
       tree.attrib['{http://www.w3.org/2000/xmlns/}w16du'] = W16DU
   ```
 - No reutilizar `w:id` ni `w:author` de revisiones existentes.
+- **Activar Track Changes en `word/settings.xml`**: insertar **ambos** elementos para máxima compatibilidad. `<w:trackRevisions/>` es el que activa el botón "Control de cambios" en la UI de Word; `<w:trackChanges/>` es complementario. Solo con `<w:trackChanges/>` el botón puede no aparecer activo:
+  ```python
+  if '<w:trackRevisions' not in sett:
+      sett = sett.replace('</w:settings>',
+                          '<w:trackRevisions/><w:trackChanges/>\n</w:settings>', 1)
+  ```
 
 ---
 
