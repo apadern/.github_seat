@@ -33,6 +33,10 @@ Actualizar o completar documentos Word (`.docx`) con formato corporativo SEAT, r
 
 ---
 
+> Las reglas de idioma, estilos, fuentes, modo seguro, Track Changes, reglas técnicas y validación se encuentran en las instrucciones del proyecto: `.github/instructions/seat-docx.instructions.md`.
+
+---
+
 ## Entradas esperadas
 1. **Fichero origen** `*`: nombre o ruta del documento Word a modificar (`.docx`). Se busca en este orden: (1) carpeta raíz del proyecto activo, (2) raíz del workspace.
 2. **Acción** `*`: qué se quiere hacer — añadir sección, añadir fila a tabla, actualizar texto, añadir lista, etc.
@@ -56,55 +60,6 @@ Actualizar o completar documentos Word (`.docx`) con formato corporativo SEAT, r
   "metrics": { "filesTouched": 1, "warnings": 0 }
 }
 ```
-
----
-
-## Sistema de estilos SEAT
-
-Ambos documentos corporativos (`SEAT - DT PLANTILLA v1.0.docx` y `SEAT - PROCEDIMIENTOS INTERNOS.docx`) comparten el mismo sistema de estilos propietario. Al insertar contenido, se deben usar **siempre** los `w:pStyle` exactos de la tabla siguiente; no usar estilos estándar de Word (`Heading1`, `Normal`, `ListParagraph`, etc.) que no formen parte del documento SEAT.
-
-### Estilos de párrafo
-
-| `w:pStyle` | Propósito | Tipografía | Tamaño | Negrita | Color |
-|---|---|---|---|---|---|
-| `Ttulodendice` | Título de índice / portada de sección (p. ej. "Tabla de contenidos", "Gestión de versiones") | minorHAnsi (Calibri) | 18 pt | Sí | `#CC0000` (rojo) |
-| `Ttulo1` | Sección principal — texto en MAYÚSCULAS | minorHAnsi (Calibri) | 16 pt | Sí | heredado |
-| `Ttulo2` | Subsección | minorHAnsi (Calibri) | 14 pt | Sí | heredado |
-| `Ttulo3` | Sub-subsección | minorHAnsi (Calibri) | 13 pt | Sí | heredado |
-| `paragraph` | Párrafo de cuerpo normal | minorHAnsi (Calibri Cuerpo) | 12 pt | No | heredado |
-| `NormalNegrita` | Párrafo de cuerpo en negrita | heredado | heredado | Sí | heredado |
-| `Prrafodelista` | Elemento de lista (ListParagraph) | Calibri | 12 pt | No | heredado |
-| `TDC1` / `TDC2` / `TDC3` | Entradas de tabla de contenidos (niveles 1-3) | — | — | — | — |
-
-**Regla**: los estilos `Ttulo1`, `Ttulo2`, `Ttulo3` y `Ttulodendice` llevan la propiedad `<w:outlineLvl>` que permite al TOC recogerlos. No añadir ese atributo a párrafos `paragraph`.
-
-**Espaciado estándar**:
-- `Ttulo1`: `<w:spacing w:before="240" w:after="240"/>`
-- `Ttulo2` y `Ttulo3`: `<w:spacing w:before="240" w:after="60"/>`
-- `paragraph`: `<w:spacing w:before="100" w:after="100"/>` ⚠️ **Sin** `beforeAutospacing` ni `afterAutospacing`: valores fijos de 5 pt. El autospacing añade hasta 12 pt extra tras headings, creando una caja vacía visible.
-
----
-
-### Estilo de tabla: `TablaSEAT2`
-
-Todas las tablas del documento usan el estilo personalizado `TablaSEAT2` (`<w:tblStyle w:val="TablaSEAT2"/>`). Sus propiedades clave:
-
-| Propiedad | Valor |
-|---|---|
-| Estilo base | `Tablanormal` |
-| Bordes (top/left/bottom/right/insideH/insideV) | `single`, grosor 4, color `#C3B8B1` |
-| Fondo celda cuerpo | `#FFFFFF` (blanco), alineación vertical centrada |
-| Fondo fila cabecera (`firstRow`) | `#B0A097` (gris arena cálido) |
-| Texto fila cabecera | Blanco `#FFFFFF`, 12 pt |
-| Fuente base de tabla | minorHAnsi (Calibri), 11 pt |
-
-**Al insertar una nueva tabla**, clonar siempre la definición `<w:tblPr>` de una tabla existente en el mismo documento en lugar de construirla manualmente; así se heredan correctamente los ajustes de ancho de banda de filas/columnas.
-
-**Al añadir una fila de cabecera**, incluir `<w:cnfStyle w:val="100000000000" w:firstRow="1" .../>` en `<w:trPr>` para que el estilo `firstRow` se aplique.
-
-**Al añadir filas de cuerpo**, mantener la alternancia de fondo implícita que gestiona el propio estilo `TablaSEAT2`; no añadir shading explícito a las celdas de cuerpo a menos que el documento original lo haga.
-
-**Anchura de tabla**: toda tabla insertada debe ocupar el **100 % del ancho disponible** del cuerpo del documento. Incluir siempre `<w:tblW w:w="5000" w:type="pct"/>` en `<w:tblPr>`. Si se clona de una tabla existente que tiene `w:type="dxa"`, reemplazar el atributo por `w:type="pct" w:w="5000"`.
 
 ---
 
@@ -158,6 +113,8 @@ from lxml import etree
 import zipfile, shutil, os
 
 # Leer ZIP original
+# IMPORTANTE: no usar '[' como prefijo de exclusión — también excluye [Content_Types].xml
+# Usar prefijos explícitos: ('[trash]', '__MACOSX', '.DS_Store')
 with zipfile.ZipFile(original_path, 'r') as z:
     doc_xml = z.read('word/document.xml')
 
@@ -253,6 +210,17 @@ Antes de declarar éxito, verificar **todos** los puntos:
    assert bad_images == [], f"Imágenes de contenido con borde incorrecto: {bad_images}"
    ```
    > **Excepciones de borde**: imágenes en portada (antes del primer `Ttulo1`) y en `word/footer*.xml` / `word/header*.xml` **no llevan borde**. Este snippet ya las excluye automáticamente.
+10. **`[Content_Types].xml` presente y no vacío** — sin este fichero Word muestra «contenido no legible» al abrir:
+   ```python
+   with zipfile.ZipFile(out_path, 'r') as z:
+       names = z.namelist()
+       assert '[Content_Types].xml' in names, "[Content_Types].xml ausente del ZIP"
+       ct = z.read('[Content_Types].xml')
+       assert len(ct) > 100, f"[Content_Types].xml vacío o demasiado corto ({len(ct)} bytes)"
+       ct_str = ct.decode('utf-8')
+       assert 'image/png' in ct_str, "[Content_Types].xml no declara image/png"
+       assert 'wordprocessingml.document.main' in ct_str, "[Content_Types].xml no declara document.xml"
+   ```
 
 > `XML_OK` es condición necesaria pero **no suficiente**: la validación semántica es obligatoria.
 
@@ -444,27 +412,7 @@ for child in body:
 
 ## Diagnóstico y corrección de fuentes
 
-La especificación correcta de **Calibri (Cuerpo)** en OOXML usa referencias de tema:
-```xml
-<w:rFonts w:asciiTheme="minorHAnsi"
-          w:eastAsiaTheme="minorEastAsia"
-          w:hAnsiTheme="minorHAnsi"
-          w:cstheme="minorBidi"/>
-```
-
-**Problemas habituales en documentos SEAT** y cómo identificarlos:
-
-| Síntoma | Origen | Solución |
-|---|---|---|
-| Cuerpo de texto en Arial | `w:docDefaults` tiene `ascii="Arial"` | Iterar TODOS los `w:rFonts` de `styles.xml` y `document.xml` con `has_named_font` + `set_calibri_cuerpo` |
-| Cuerpo de texto en Arial | Estilo `Normal` sin override hereda `docDefaults` | Ídem: `set_calibri_cuerpo` sobre todos los rFonts de `styles.xml` cubre este caso |
-| Estilo `paragraph` en Times New Roman | `rPr/rFonts` del estilo tenía `ascii="Times New Roman"` | Ídem |
-| `Prrafodelista` en Arial | `rPr/rFonts` tenía `cs="Arial"` | Ídem |
-| Cualquier texto en fuente nombrada (Arial, Times, Calibri literal, etc.) | Runs copiados del original tienen `w:rFonts` con `ascii`/`hAnsi`/`eastAsia`/`cs` nombrados | `has_named_font` + `set_calibri_cuerpo` sobre **todos** los `w:rFonts` de `document.xml` y `styles.xml` — aplicar con lxml **antes** de serializar a string |
-| East Asian como `SeatMetaNormal` | Atributo `w:eastAsia="SeatMetaNormal"` en runs | Cubierto por `has_named_font` + `set_calibri_cuerpo`; también hacer `str.replace` sobre XML serializado como safety net |
-| **`w:cs="SeatMetaNormal"`** en rFonts | Atributo CS propietario en runs copiados del original | Cubierto por lxml; como safety net: `re.sub(r'\s+w:cs="SeatMetaNormal"', ' w:cstheme="minorBidi"', doc_str)` |
-| `w:cstheme="minorHAnsi"` en rFonts | Error de origen en docs SEAT | `str.replace` o regex: cambiar a `w:cstheme="minorBidi"` |
-| Sección usa `Normal` en vez de `paragraph` | El autor no asignó estilo SEAT | Las correcciones de `docDefaults`/`Normal` cubren este caso |
+> Las reglas sobre qué fuentes usar y cuándo corregirlas están en `.github/instructions/seat-docx.instructions.md` (sección "Fuentes: Calibri (Cuerpo)"). A continuación, la implementación completa.
 
 **Estrategia completa de normalización de fuentes** (lxml primero, string después):
 ```python
@@ -532,6 +480,7 @@ def set_calibri_cuerpo(rf_elem):
 | Trampa | Síntoma observable | Corrección |
 |---|---|---|
 | **ZIP con entradas duplicadas** (`ZipFile(...,'a')`) | Word: «el archivo está dañado» al abrir | Leer el ZIP entero en un `dict` y escribir un ZIP nuevo. Ver Paso 4. |
+| **`[Content_Types].xml` excluido por prefijo `'['`** en el filtro de lectura del ZIP | Word: «contenido no legible» al abrir; el fichero parece corrupto | El prefijo `'['` también coincide con `[Content_Types].xml`. Usar prefijos explícitos: `EXCLUDE = ('[trash]', '__MACOSX', '.DS_Store')` — **nunca** `'['` a secas. Verificar siempre con el check 10 del Paso 5. |
 | **TOC en `w:sdt`** — buscar TDC en `list(body)` | `last_tdc_idx=None` aunque el índice existe | Los párrafos TDC están en `w:sdt/w:sdtContent`. Usar XPath o navegar explícitamente al `w:sdtContent`. |
 | **`list(body)` no entra en tablas ni SDT** | No se encuentran párrafos de tabla o TDC | `list(body)` = solo hijos directos. Usar `body.iter(W+'p')` para buscar en todo el árbol. |
 | **lxml truth-testing** (`if elemento:`) | `False` inesperado en elementos sin hijos | Usar siempre `if elem is not None:` — `bool(lxml_element)` depende de si tiene hijos, no de si es `None`. |
@@ -546,10 +495,11 @@ def set_calibri_cuerpo(rf_elem):
 | **`Ttulo1` texto no uppercase** | Secciones principales en minúsculas | El estilo `Ttulo1` no tiene `caps=True`; uppercase explícito en Python sobre los `w:t` del párrafo + añadir `<w:caps/>` al `w:rPr` del estilo en `styles.xml`. |
 | **xmlns duplicado en `<Relationship>` de .rels** | Word rechaza el documento | Construir el fichero `.rels` como string, no con `etree.SubElement`; verificar `rels_str.count('xmlns=') == 1`. |
 | **Vacío antes de tabla del contenido no eliminado** | Espacio visual extra entre heading y primera tabla | Tras ensamblar el body, iterar los pares (párrafo vacío, `w:tbl`) contiguos y eliminar el párrafo vacío si precede directamente a la tabla. Excluir el vacío entre "Gestión de versiones" y la tabla de versiones de la plantilla (está en las posiciones 0-36, fuera del contenido migrado). |
-| **Párrafos vacíos tras heading — solo se elimina el primero** | Espacio visual extra entre título y contenido cuando el original tiene 2+ vacíos consecutivos | El bug típico es `skip_empty = False` dentro de la rama de eliminación, lo que detiene la eliminación tras el primer vacío. **Corrección**: no resetear `skip_empty` hasta encontrar un párrafo con contenido. Ver sección "Eliminar TODOS los párrafos vacíos del contenido" en el prompt de migración. |
-| **Párrafos vacíos dispersos en el contenido** (no solo tras headings) | Líneas vacías visibles entre párrafos normales, entre ítems de lista, entre secciones | Los originales usan párrafos vacíos como separadores visuales. Eliminarlos **todos** del área de contenido: `processed = [e for e in processed if not (e.tag == W+'p' and is_empty(e))]`. El espaciado visual lo aportan los `w:spacing` de los estilos SEAT. |
+| **Párrafos vacíos tras heading — solo se elimina el primero** | Espacio visual extra entre título y contenido cuando el original tiene 2+ vacíos consecutivos | Eliminar **todos** los vacíos inmediatamente después de un heading iterando hasta que el primer elemento no vacío llega. No usar `skip_empty = False` tras el primer vacío eliminado. Ver regla de párrafos vacíos en el prompt de migración. |
+| **Párrafos vacíos entre párrafos de cuerpo** | Líneas vacías entre párrafos normales o de lista eliminadas por error | Conservar **un** párrafo vacío entre dos elementos de cuerpo (`paragraph`/`Prrafodelista`) consecutivos cuando el original lo tenía. Solo eliminar los que siguen a un heading y colapsar secuencias de 2+ vacíos consecutivos a 1. Patrón: `if is_empty(elem) and (prev_style in HEADING_STYLES or is_empty(filtered[-1])): continue`. |
 | **`w:cs="Calibri"` o `w:eastAsia="Calibri"` explícito en runs copiados** | Word muestra "Calibri" (fuente nombrada) en lugar de "Calibri Cuerpo" (tema) al seleccionar texto de listas | Limpiar con regex tras serializar: `re.sub(r'\s+w:cs="Calibri(?:\s+Light)?"', '', doc_str)` y `re.sub(r'\s+w:eastAsia="Calibri(?:\s+Light)?"', '', doc_str)`. |
 | **`a:ln` en imágenes con formato incompleto** (`noFill`, `solidFill` sin `w`, sin `round`) | Borde invisible o sin cerrar en 1-3 lados | No basta con comprobar si existe `a:ln`; verificar también `has_round = ln.find(A+'round') is not None` y `cmpd='sng'`. Reemplazar cualquier `a:ln` no conforme con el borde estándar (`w="9525" cmpd="sng" algn="ctr"` + `<a:solidFill><a:srgbClr val="000000"/></a:solidFill><a:round/>`). |
+| **`a:noFill` ausente antes de `a:ln` en `pic:spPr`** | Borde de imagen no renderizado en Word Online / SharePoint preview aunque el XML sea válido | El esquema OOXML `CT_ShapeProperties` requiere un elemento de relleno entre `prstGeom` y `ln`. Sin `<a:noFill/>`, algunos renderizadores ignoran el borde. Insertar siempre `<a:noFill/>` en `pic:spPr` **inmediatamente antes** de `<a:ln>`. Orden obligatorio: `xfrm` → `prstGeom` → `<a:noFill/>` → `<a:ln>`. |
 | **Borde añadido a imágenes de portada o footer** | El logo SEAT o el icono corporativo aparece con borde negro | Los bordes solo deben aplicarse a imágenes en la sección de **contenido** (en o después del primer `Ttulo1`). Las imágenes anteriores al primer `Ttulo1` pertenecen a la portada y **nunca** deben recibir borde. Las imágenes en los ficheros `word/footer*.xml` y `word/header*.xml` **tampoco** deben recibir borde (el script que itera `document.xml` las omite automáticamente, pero si se procesan ficheros de cabecera/pie, aplicar la misma exclusión). Calcular `first_ttulo1_idx` y saltar las imágenes con `i < first_ttulo1_idx`. |
 | **Imágenes inline con texto** (imagen + texto en el mismo párrafo) | La imagen aparece pegada al texto en la misma línea en lugar de en su propio bloque | Dividir el párrafo: texto primero (en la posición original, mismo estilo), imagen después (nuevo párrafo `paragraph`). Ver regla "Imágenes en párrafo propio" en el prompt de migración. |
 | **Sin párrafo vacío tras imágenes** | El siguiente bloque de texto aparece inmediatamente bajo la imagen sin separación visual | Añadir un párrafo vacío de estilo `paragraph` después de cada párrafo de solo-imagen, excepto cuando el siguiente elemento también es solo-imagen. No añadir en párrafos de la sección de portada. |
@@ -723,10 +673,12 @@ conflicts = remote_changes & own_changes
 
 ## Criterios de aceptación
 
+> Las reglas completas (estilos, fuentes, Track Changes, modo seguro, validación) están en `.github/instructions/seat-docx.instructions.md`.
+
 - [ ] El documento origen se ha localizado antes de cualquier edición.
 - [ ] `word/styles.xml` contiene los estilos SEAT esperados; si no, se ha alertado al usuario.
 - [ ] Se ha trabajado sobre una copia `_preview`; el original no ha sido modificado.
-- [ ] Los estilos usados en el contenido insertado pertenecen al conjunto SEAT (`Ttulo1`, `Ttulo2`, `Ttulo3`, `paragraph`, `NormalNegrita`, `Prrafodelista`, `TablaSEAT2`).
+- [ ] Los estilos usados pertenecen al conjunto SEAT (`Ttulo1`, `Ttulo2`, `Ttulo3`, `paragraph`, `NormalNegrita`, `Prrafodelista`, `TablaSEAT2`).
 - [ ] La inserción se ha realizado con lxml, no con regex como mecanismo principal de posicionamiento estructural.
 - [ ] La declaración XML usa comillas dobles.
 - [ ] Todos los puntos de la validación semántica (Paso 5) han pasado.
@@ -736,25 +688,20 @@ conflicts = remote_changes & own_changes
 ---
 
 ## Checklist rápido
+
+> Para las reglas de qué aplicar, ver `.github/instructions/seat-docx.instructions.md`. Este checklist verifica la ejecución correcta.
+
 - [ ] Documento origen localizado y verificado como formato SEAT
 - [ ] Posición de inserción determinada con lxml, no con regex estructural
 - [ ] Estilos SEAT usados (nunca `Heading1`, `Normal`, `ListParagraph` estándar)
 - [ ] Para tablas: `TablaSEAT2` + eliminar `tblBorders`/`shd`/`tcBorders` explícitos del original
 - [ ] Track Changes: 2 `w:id` por párrafo, `w:author`, `w:date`, `w16du:dateUtc`
-- [ ] Validación semántica completa ejecutada
+- [ ] Validación semántica completa ejecutada (los 12 puntos de las instrucciones)
 - [ ] Si se añadieron headings: entradas TDC añadidas en `w:sdt/w:sdtContent` con bookmarks
-- [ ] Fuentes: `has_named_font` + `set_calibri_cuerpo` aplicado a **todos** los `w:rFonts` de `document.xml` Y `styles.xml` (cubre `docDefaults`, `Normal`, `paragraph`, runs del contenido); 0 fuentes nombradas restantes
-- [ ] Fuentes en runs copiados: `SeatMetaNormal` y otras fuentes nombradas eliminadas con regex sobre el XML serializado (`ascii`, `hAnsi`, `eastAsia`, `cs` → `0 ocurrencias`)
-- [ ] `Ttulo1` textos en MAYÚSCULAS explícitas + `<w:caps/>` en `styles.xml`
-- [ ] Imágenes de **portada** (antes del primer `Ttulo1`) y de **footer/header** (`word/footer*.xml`, `word/header*.xml`): sin borde; imágenes de **contenido** (desde el primer `Ttulo1` en `document.xml`): borde negro 0,75 pt con `cmpd="sng" algn="ctr"` + `<a:round/>` — **nunca** `cap="flat"`
-- [ ] Imágenes en su propio párrafo: ninguna imagen comparte párrafo con texto; párrafo texto primero, párrafo imagen después
-- [ ] Párrafo vacío `paragraph` insertado después de cada imagen-única, excepto entre imágenes consecutivas
-- [ ] Estilo `paragraph` sin `beforeAutospacing` ni `afterAutospacing`; solo `before="100"` `after="100"` + `contextualSpacing`
-- [ ] Hiperenlaces de contenido: todos los runs con `w:rStyle val="Hipervnculo"` (excluir `w:sdt` TOC)
-- [ ] `numId` del contenido: 0 huérfanos; si hay dash lists, abstractNum copiado del original
-- [ ] `numbering.xml`: todos los `w:rFonts` usan `minorHAnsi` (excepto Wingdings y Symbol); 0 fuentes nombradas (Arial, Times New Roman, Courier New)
-- [ ] `.rels` construido como string, no con `etree.SubElement`; `xmlns=` aparece exactamente 1 vez
-- [ ] Tabla de versiones: número de versión en columna 0 (Versión), texto libre en columna 3 (Comentarios)
-- [ ] Portada: `w:rPr` del run tomado de la plantilla, no del original; sin `w:color` explícito
+- [ ] Fuentes: `set_calibri_cuerpo` aplicado a todos los `w:rFonts` de `document.xml` + `styles.xml`; 0 fuentes nombradas; `SeatMetaNormal` eliminado con regex
+- [ ] Imágenes de contenido (desde `Ttulo1`): borde correcto con `<a:noFill/>` + `<a:ln>`; portada/footer/header: sin borde
+- [ ] Imágenes en su propio párrafo; párrafo vacío tras imagen-única
+- [ ] `numId` del contenido: 0 huérfanos; `numbering.xml`: 0 fuentes nombradas
+- [ ] `.rels` construido como string; `xmlns=` exactamente 1 vez; 0 `Id` duplicados
 - [ ] ZIP escrito con patrón `dict → nuevo ZipFile` (sin modo `'a'`)
 - [ ] Copia `_preview` entregada, original intacto

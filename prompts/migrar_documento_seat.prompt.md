@@ -339,6 +339,10 @@ Subir el fichero local con `mcp_teams-graph_sharepoint_upload_local_file` a la c
 
 ## Instrucciones comunes (todos los tipos)
 
+> Las reglas de idioma, estilos, fuentes, Track Changes, modo seguro, validación e integridad estructural están en `.github/instructions/seat-docx.instructions.md`. A continuación, solo las instrucciones específicas del proceso de migración.
+
+---
+
 ### Integridad estructural del DOCX resultante (prevención de corrupción)
 
 Estas reglas previenen los errores que hacen que Word rechace o corrompa el documento al abrirlo. Aplicarlas **antes de escribir el ZIP final**, en el orden indicado.
@@ -473,9 +477,9 @@ for new_abs in new_abstractnums:
 - La estrategia correcta es copiar directamente los elementos del original con `copy.deepcopy`, cambiando solo el `w:pStyle` (no los `w:rPr` de los runs, para que las fuentes del template tomen efecto).
 
 ### Estilos y formato
-- Usar **exclusivamente** los estilos del sistema SEAT definidos en el agente: `Ttulo1`, `Ttulo2`, `Ttulo3`, `paragraph`, `NormalNegrita`, `Prrafodelista`, `TablaSEAT2`, `Ttulodendice`.
-- No usar estilos estándar de Word (`Heading1`, `Normal`, `ListParagraph`, etc.).
-- El espaciado entre secciones debe respetar los valores estándar del sistema SEAT.
+
+> Usar exclusivamente los estilos SEAT (`Ttulo1`–`Ttulo3`, `paragraph`, `NormalNegrita`, `Prrafodelista`, `TablaSEAT2`); ver reglas completas en `.github/instructions/seat-docx.instructions.md` (sección 2).
+
 - **Calibri (Cuerpo) obligatorio en todo el contenido (excepto portada)**: tras construir el documento, corregir siempre `word/styles.xml` con la función `set_calibri_cuerpo()` sobre los estilos `docDefaults`, `Normal`, `paragraph`, `Prrafodelista` y `NormalNegrita`. Esto garantiza que el cuerpo del documento usa `minorHAnsi` (Calibri Cuerpo) y no Arial ni Times New Roman heredados de plantillas anteriores.
 - **Sin espaciado automático en el estilo `paragraph`**: al definir el estilo `paragraph` en `styles.xml`, **no** incluir `w:beforeAutospacing` ni `w:afterAutospacing`. Usar únicamente `w:before="100"` y `w:after="100"` (5pt fijos). El `beforeAutospacing="1"` hace que Word calcule el espacio antes del párrafo según el contexto y puede añadir hasta 12pt de espacio automático tras un heading, creando una visible "caja vacía" entre el título y el texto. Los 5pt fijos dan una separación mínima consistente sin ese efecto. Añadir `<w:contextualSpacing/>` para suprimir el espaciado entre párrafos consecutivos del mismo estilo.
 - **Línea vacía entre subsecciones en CAMBIOS**: insertar un párrafo vacío de estilo `paragraph` inmediatamente antes de cada `Ttulo2` dentro de la sección CAMBIOS, **excepto el primero**. El primer `Ttulo2` sigue directamente al `Ttulo1` sin párrafo vacío intermedio. Ejemplo de estructura correcta:
@@ -487,68 +491,29 @@ for new_abs in new_abstractnums:
   Ttulo2: 2.2 Segundo cambio      ← línea vacía antes
   ...contenido...
   ```
-- **Eliminar TODOS los párrafos vacíos del contenido**: los documentos originales suelen usar párrafos vacíos como separadores visuales. En el resultado SEAT el espaciado lo aportan los atributos `w:spacing` de los estilos (`Ttulo2 after=60`, `paragraph before=100`, etc.), no párrafos vacíos. Después de copiar el contenido, eliminar **todos** los párrafos vacíos del área de contenido (sin excepción): `processed = [e for e in processed if not (e.tag == W+'p' and is_empty(e))]`. Esto cubre los vacíos tras headings, entre párrafos de lista, entre secciones y cualquier otro contexto.
+- **Párrafos vacíos entre párrafos de cuerpo consecutivos**: conservar **un único** párrafo vacío entre dos párrafos de cuerpo (`paragraph` / `Prrafodelista`) consecutivos cuando el original lo tenía. Este párrafo vacío actúa como línea en blanco visual entre bloques de texto. Reglas de post-procesado:
+  - Eliminar párrafos vacíos que aparezcan **inmediatamente después de un heading** (`Ttulo1`, `Ttulo2`, `Ttulo3`); el heading ya tiene `w:spacing after` suficiente.
+  - Colapsar **secuencias de más de un párrafo vacío consecutivo** a exactamente uno.
+  - Conservar el párrafo vacío entre un párrafo de cuerpo y el heading siguiente (actúa como espacio visual previo al nuevo apartado).
+  ```python
+  HEADING_STYLES = {'Ttulo1', 'Ttulo2', 'Ttulo3'}
+  def para_style(el):
+      ps = el.find('.//' + W+'pStyle') if el.tag == W+'p' else None
+      return ps.get(W+'val','') if ps is not None else ''
+
+  filtered = []
+  for elem in new_content:
+      if is_empty(elem):
+          prev_sty = para_style(filtered[-1]) if filtered else ''
+          if prev_sty in HEADING_STYLES:   # vacío tras heading: descartar
+              continue
+          if filtered and is_empty(filtered[-1]):  # segundo vacío consecutivo: descartar
+              continue
+      filtered.append(elem)
+  ```
 - **⚠️ Definición de párrafo vacío (crítico)**: un párrafo se considera **vacío** si y solo si: (a) no contiene texto visible (ningún `w:t` con contenido no blanco) **y** (b) no contiene ningún elemento `w:drawing`. Los párrafos con solo imágenes **nunca** se eliminan. En código: `def is_empty(p): return not any((t.text or '').strip() for t in p.iter(W+'t')) and p.find('.//' + W + 'drawing') is None`.
 
-### Índice / Tabla de contenidos
-- El campo de índice automático (TOC) de la plantilla se mantiene **exactamente tal cual**: no se elimina, no se reconstruye, no se añaden entradas, no se modifican los números de página y no se insertan campos `PAGEREF`.
-- **No** añadir `w:dirty="1"` al `fldChar` del campo TOC ni `w:updateFields` en `settings.xml`: ambos mecanismos provocan que Word evalúe los campos antes de paginar y todos los números de página aparecen como `1`.
-- Los números de página del índice quedarán desactualizados hasta que el usuario los regenere manualmente en Word. Esto es correcto y esperado.
-
-### Limpieza de fuentes heredadas del contenido original
-- Al copiar párrafos del original, los `w:rFonts` de los runs pueden contener nombres de fuentes explícitos (`Arial`, `Times New Roman`, `Calibri`, `SeatMetaNormal`, etc.) que sobrescriben la fuente del estilo y producen texto en fuente incorrecta.
-- **Estrategia obligatoria — lxml sobre `document.xml` y `styles.xml`**: usar lxml para iterar todos los `w:rFonts` de ambos ficheros y convertir cualquier fuente nombrada a referencias de tema. **Excepciones**: conservar `Wingdings`, `Symbol` y sus variantes. Patrón:
-  ```python
-  SYMBOL_FONTS = {'Wingdings', 'Symbol', 'Wingdings 2', 'Wingdings 3'}
-
-  def has_named_font(rf):
-      for a in ('ascii', 'hAnsi', 'eastAsia', 'cs'):
-          v = rf.get(W + a)
-          if v and v not in SYMBOL_FONTS:
-              return True
-      return False
-
-  def set_calibri_cuerpo(rf):
-      for a in ('ascii', 'hAnsi', 'eastAsia', 'cs'):
-          key = W + a
-          if key in rf.attrib and rf.attrib[key] not in SYMBOL_FONTS:
-              del rf.attrib[key]
-      rf.set(W+'asciiTheme',    'minorHAnsi')
-      rf.set(W+'eastAsiaTheme', 'minorEastAsia')
-      rf.set(W+'hAnsiTheme',    'minorHAnsi')
-      rf.set(W+'cstheme',       'minorBidi')
-      if W+'hint' in rf.attrib: del rf.attrib[W+'hint']
-
-  # Aplicar a document.xml Y a styles.xml
-  for rf in doc_tree.iter(W+'rFonts'):
-      if has_named_font(rf): set_calibri_cuerpo(rf)
-  for rf in styles_tree.iter(W+'rFonts'):
-      if has_named_font(rf): set_calibri_cuerpo(rf)
-  ```
-  > Aplicar a **ambos** ficheros es imprescindible: si `docDefaults` en `styles.xml` tiene `ascii="Arial"`, todos los párrafos sin fuente explícita heredarán Arial aunque el estilo `paragraph` use `minorHAnsi`.
-- Tras lxml, aplicar sobre el XML serializado las sustituciones de string para residuos de `SeatMetaNormal`:
-  ```python
-  doc_str = re.sub(r'\s+w:ascii="SeatMetaNormal"',    '',                             doc_str)
-  doc_str = re.sub(r'\s+w:hAnsi="SeatMetaNormal"',    '',                             doc_str)
-  doc_str = re.sub(r'\s+w:eastAsia="SeatMetaNormal"', '',                             doc_str)
-  doc_str = re.sub(r'\s+w:cs="SeatMetaNormal"',       ' w:cstheme="minorBidi"',       doc_str)
-  doc_str = doc_str.replace('eastAsia="SeatMetaNormal"', 'eastAsiaTheme="minorEastAsia"')
-  doc_str = doc_str.replace('w:cstheme="minorHAnsi"',    'w:cstheme="minorBidi"')
-  doc_str = doc_str.replace('<w:rFonts/>',               '')
-  assert doc_str.count('SeatMetaNormal') == 0
-  ```
-- La entrada de `word/fontTable.xml` que declare `SeatMetaNormal` no afecta al renderizado y puede dejarse.
-- **⚠️ Normalizar fuentes en `word/numbering.xml`**: usar también `has_named_font` / `set_calibri_cuerpo` sobre el `numbering.xml` ensamblado. **Excepción**: conservar `Wingdings` y `Symbol`.
-
-### Texto de Ttulo1 en MAYÚSCULAS
-- El estilo `Ttulo1` de la plantilla SEAT **no** tiene la propiedad `w:caps` activa (es `False`). El texto de los runs de un `Ttulo1` debe estar en mayúsculas explícitas en el XML; Word no lo convierte automáticamente.
-- Al mapear `Heading1 → Ttulo1`, aplicar `.upper()` al texto de todos los `w:t` del párrafo:
-  ```python
-  if new_style == 'Ttulo1':
-      for t in new_elem.iter(W+'t'):
-          if t.text: t.text = t.text.upper()
-  ```
-- Opcionalmente, añadir `<w:caps/>` al `w:rPr` del estilo `Ttulo1` en `styles.xml` para que Word aplique el efecto incluso si el texto fuente no está en mayúsculas. Ambas medidas son compatibles; usar la segunda como salvaguarda adicional.
+> Para la limpieza de fuentes heredadas, ver `.github/instructions/seat-docx.instructions.md` (sección "Fuentes: Calibri (Cuerpo)") y la implementación completa en `Agente_actualizacion_doc_SEAT` (sección "Diagnóstico y corrección de fuentes"). Para el índice/TOC y el texto en MAYÚSCULAS de `Ttulo1`, ver las instrucciones sección 7 y 2 respectivamente.
 
 ### Imágenes en párrafo propio y párrafo vacío posterior
 - **Imágenes siempre en su propio párrafo**: ninguna imagen (`w:drawing`) debe compartir párrafo con texto. Si al copiar el contenido un párrafo contiene runs de texto Y un run con `w:drawing`, dividirlo en dos párrafos: el texto primero (mismo estilo), la imagen después (estilo `paragraph`). Esto evita que la imagen aparezca inline a la derecha del texto en lugar de en una línea propia.
@@ -602,6 +567,13 @@ for new_abs in new_abstractnums:
               has_round = ln.find('{%s}round' % A_NS) is not None
               if not (has_solid and has_round): sppr.remove(ln); ln = None
           if ln is None:
+              # a:noFill es obligatorio entre prstGeom y a:ln según el esquema CT_ShapeProperties;
+              # sin él, algunos renderizadores (Word Online, SharePoint preview) omiten el borde
+              if sppr.find('{%s}noFill' % A_NS) is None:
+                  prstGeom = sppr.find('{%s}prstGeom' % A_NS)
+                  insert_pos = (list(sppr).index(prstGeom) + 1
+                                if prstGeom is not None else len(list(sppr)))
+                  sppr.insert(insert_pos, etree.Element('{%s}noFill' % A_NS))
               new_ln = etree.SubElement(sppr, '{%s}ln' % A_NS)
               new_ln.set('w', '9525'); new_ln.set('cmpd', 'sng'); new_ln.set('algn', 'ctr')
               sf = etree.SubElement(new_ln, '{%s}solidFill' % A_NS)
@@ -615,12 +587,22 @@ for new_abs in new_abstractnums:
   MARGIN = 19050
   for i, el in enumerate(list(body)):
       if i < first_ttulo1_idx: continue  # saltar portada
+      # Inline drawings
       for inline in el.iter(WP + 'inline'):
           ee = inline.find(WP + 'effectExtent')
-          if ee is not None:
-              for side in ('l', 't', 'r', 'b'):
-                  if int(ee.get(side, '0')) < MARGIN:
-                      ee.set(side, str(MARGIN))
+          if ee is None:
+              ee = etree.SubElement(inline, WP + 'effectExtent')
+          for side in ('l', 't', 'r', 'b'):
+              if int(ee.get(side, '0')) < MARGIN:
+                  ee.set(side, str(MARGIN))
+      # Anchor drawings (imágenes flotantes)
+      for anchor in el.iter(WP + 'anchor'):
+          ee = anchor.find(WP + 'effectExtent')
+          if ee is None:
+              ee = etree.SubElement(anchor, WP + 'effectExtent')
+          for side in ('l', 't', 'r', 'b'):
+              if int(ee.get(side, '0')) < MARGIN:
+                  ee.set(side, str(MARGIN))
   ```
   > Aplicar este fix **después** de insertar los bordes `a:ln`, en el mismo paso.
 

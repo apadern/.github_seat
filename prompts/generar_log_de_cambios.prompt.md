@@ -100,7 +100,9 @@ Si el proyecto indicado por el usuario **no tiene un fichero LC en SharePoint**,
 
 ---
 
-## Directrices de inserción en `.docx` (siempre que el destino sea Word)
+## Directrices de inserción en `.docx` (LC)
+
+> Las reglas de estilos, estructura, Track Changes, modo seguro, fuentes, validación y reglas técnicas de edición DOCX están en `.github/instructions/seat-docx.instructions.md` (secciones 2–10). A continuación, solo las reglas específicas de este prompt LC.
 
 ### Ubicación dentro del documento
 El contenido **siempre** se inserta dentro de la sección `CAMBIOS` (`Ttulo1`) como un nuevo subapartado. Nunca fuera de ella.
@@ -129,100 +131,9 @@ Si ya existe una coincidencia por ticket, no crear un nuevo `Ttulo2`: reutilizar
 
 > **Importante**: si el `Ttulo2` candidato existe pero su texto está íntegramente dentro de elementos `w:del` (es decir, es una eliminación pendiente de aceptar), considerarlo como **no existente** y crear un nuevo `Ttulo2` con el título completo.
 
-### Estructura del nuevo subapartado
-```
-CAMBIOS  ← Ttulo1 existente, no se toca
-  └── [Título del ticket]           ← Ttulo2  (nuevo)
-        ├── Frontend                ← Prrafodelista ilvl=0
-        │   ├── ruta/fichero.js:    ← Prrafodelista ilvl=1
-        │   │   └── método – razón  ← Prrafodelista ilvl=2
-        │   └── ruta/otro.xml:      ← Prrafodelista ilvl=1
-        │       └── descripción     ← Prrafodelista ilvl=2
-```
+### Calcular `w:id` de partida
 
-### Estilos y atributos XML exactos a usar
-| Nivel | Estilo Word (`w:pStyle`) | `w:ilvl` | `w:numId` |
-|---|---|---|---|
-| Título del subapartado | `Ttulo2` | — | — |
-| "Frontend" | `Prrafodelista` | `0` | clonar del `w:numId` del `Prrafodelista ilvl=0` más próximo en `CAMBIOS` (en plantilla SEAT LC: `numId=16`) |
-| Ruta de fichero | `Prrafodelista` | `1` | mismo `w:numId` que el nivel 0 |
-| Descripción del cambio | `Prrafodelista` | `2` | mismo `w:numId` que el nivel 0 |
-
-**Fallback cuando no hay entradas previas en CAMBIOS**: si no existe ningún `Prrafodelista` en la sección `CAMBIOS`, usar `numId=16` como punto de partida (numId estándar para `Prrafodelista` en la plantilla SEAT LC) e inspeccionar `word/numbering.xml` del propio documento para confirmar qué `numId` corresponde a una lista con tres niveles de sangría. Usar ese valor en todos los párrafos del nuevo subapartado.
-
-> **Verificación de tipo de lista obligatoria**: al clonar o seleccionar el `numId`, localizar su `abstractNumId` en `word/numbering.xml` y confirmar que el nivel 0 tiene `<w:numFmt w:val="bullet"/>` — no `decimal` ni `lowerLetter`. Si es `decimal`, buscar otro `numId` cuyo `abstractNum` defina viñetas (`bullet`) en ilvl 0, 1 y 2. Usar una lista decimal donde se esperan viñetas provoca que los ítems se numeren acumulativamente (p. ej. «11. ABAP:» en lugar de «• ABAP:») a lo largo de todo el documento.
-
-### Formato del texto en cada nivel
-- **Título (`Ttulo2`)**: texto completo del título de la incidencia/ticket tal como lo proporcionó el usuario.
-- **Nivel 0** (`Frontend`): solo esa palabra, sin puntuación.
-- **Nivel 1** (fichero): ruta relativa al proyecto + `:` al final. Ejemplo: `controller/MyController.controller.js:`
-- **Nivel 2** (cambio): formato `nombreMétodo – descripción breve del cambio`. Si no hay método identificable, descripción directa del cambio.
-
-### Orden de aparición de los bloques
-1. Solo `Frontend`: todos los cambios detectados se insertan en este bloque.
-2. No crear bloque `Backend` en ningún caso.
-
-### Párrafo vacío entre subapartados
-Insertar un párrafo vacío (`w:p` sin estilo ni contenido) entre el `Heading2` y el primer `ListParagraph`, y otro al final del subapartado, replicando el patrón del documento existente.
-
-### Modo seguro de escritura — obligatorio
-- Descargar el fichero de SharePoint a `/tmp/` antes de modificarlo.
-- Crear una copia `_backup` del fichero descargado en `/tmp/` antes de cualquier modificación.
-- Aplicar los cambios sobre el fichero descargado (no sobre el backup).
-- Validar el resultado localmente antes de subir.
-- No reutilizar descargas de sesiones previas sin verificar que el hash coincide con el ítem actual de SharePoint.
-- Al localizar el punto de inserción (último párrafo antes de `w:sectPr`), usar siempre `rfind(anchor_key, 0, idx_sectPr)` — **nunca `find()`** — para obtener la última ocurrencia del patrón de cierre de párrafo, ya que el mismo fragmento XML puede aparecer cientos de veces antes en el documento.
-
-### Control de versiones (Track Changes) — obligatorio
-Todo el contenido insertado **siempre** debe ir marcado como revisión pendiente, independientemente de si el documento ya tiene revisiones activas o no:
-- Cada párrafo nuevo requiere **dos `w:ins` separados** (no uno envolviendo todo el `w:p`):
-  1. Un `w:ins` vacío dentro de `w:pPr/w:rPr` — marca que el párrafo en sí es nuevo.
-  2. Un `w:ins` envolviendo solo el `w:r` con el texto — marca el contenido del run.
-- **Obligatorio**: cada `w:p` nuevo debe incluir `<w:pStyle w:val="Prrafodelista"/>` como primer hijo de `w:pPr`, antes de `w:numPr`.
-- Por tanto cada párrafo consume **2 `w:id` consecutivos**. Al calcular el `w:id` de partida, sumar 2 por cada párrafo insertado, no 1.
-- Atributos requeridos en cada `w:ins`:
-  - `w:id`: entero único incremental. **Calcular el `w:id` máximo leyendo directamente el ZIP del fichero que se va a modificar en ese momento** (`zipfile.ZipFile(path_actual).read('word/document.xml')`), nunca sobre un backup ni una copia de sesión anterior. En caso de fusión con una versión remota (paso 6b), el máximo debe calcularse sobre la versión remota descargada, no sobre el backup original.
-  - `w:author`: valor obtenido de `mcp_teams-graph_graph_get_current_user` (campo `displayName`).
-  - `w:date`: fecha y hora local del sistema en formato `YYYY-MM-DDTHH:MM:SSZ`.
-  - `w16du:dateUtc`: misma fecha en UTC puro (restar el offset horario local a `w:date`). **Obligatorio** para que Word 2021+ muestre el autor y la fecha en los globos de revisión.
-- No reutilizar el `w:author` ni el `w:id` de revisiones existentes en el documento.
-
-Ejemplo de estructura XML para un párrafo de nivel 0 (IDs 119 y 120):
-```xml
-<w:p>
-  <w:pPr>
-    <w:pStyle w:val="Prrafodelista"/>
-    <w:numPr><w:ilvl w:val="0"/><w:numId w:val="[numId del documento]"/></w:numPr>
-    <w:rPr>
-      <w:ins w:id="119" w:author="Nombre Apellido" w:date="2026-03-24T10:00:00Z" w16du:dateUtc="2026-03-24T09:00:00Z"/>
-    </w:rPr>
-  </w:pPr>
-  <w:ins w:id="120" w:author="Nombre Apellido" w:date="2026-03-24T10:00:00Z" w16du:dateUtc="2026-03-24T09:00:00Z">
-    <w:r><w:t>Frontend</w:t></w:r>
-  </w:ins>
-</w:p>
-```
-
-### Declaración de namespace `w16du` — obligatorio
-Antes de serializar, comprobar que el namespace `w16du` está declarado en el elemento raíz. Si no lo está (documento creado antes de Word 2021), añadirlo explícitamente:
-
-```python
-W16DU = 'http://schemas.microsoft.com/office/word/2023/wordml/word16du'
-if 'w16du' not in tree.nsmap:
-    tree.attrib['{http://www.w3.org/2000/xmlns/}w16du'] = W16DU
-```
-
-### Normalización de la declaración XML — obligatorio
-Tras serializar `word/document.xml` con lxml (`tree.write()`), verificar que la declaración XML usa **comillas dobles**:
-
-```python
-xml_str = xml_bytes.decode('utf-8')
-xml_str = xml_str.replace(
-    "<?xml version='1.0' encoding='UTF-8' standalone='yes'?>",
-    '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>',
-    1
-)
-```
+Al calcular el `w:id` máximo para los `w:ins`, leer directamente el ZIP del fichero que se va a modificar en ese momento (`zipfile.ZipFile(path_actual).read('word/document.xml')`), nunca sobre un backup ni una copia de sesión anterior. En caso de fusión con una versión remota (paso 6b), calcular el máximo sobre la versión remota descargada, no sobre el backup original.
 
 ---
 
